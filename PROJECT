@@ -1,0 +1,6 @@
+domain: opensergo.io
+layout:
+- go.kubebuilder.io/v3
+projectName: opensergo-pilot
+repo: github.com/opensergo/opensergo-pilot
+version: "3"

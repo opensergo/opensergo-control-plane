@@ -3,15 +3,12 @@ module github.com/opensergo/opensergo-pilot
 go 1.17
 
 require (
+	github.com/opensergo/opensergo-go v0.0.0-20220318093103-10541ac9ade4
+	go.uber.org/multierr v1.6.0
 	google.golang.org/grpc v1.45.0
 	k8s.io/apimachinery v0.23.0
 	k8s.io/client-go v0.23.0
 	sigs.k8s.io/controller-runtime v0.11.0
-)
-
-require (
-	github.com/opensergo/opensergo-go v0.0.0-20220310024746-9c3f50c0d1cf
-	go.uber.org/multierr v1.6.0
 )
 
 require (

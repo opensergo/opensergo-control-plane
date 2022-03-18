@@ -1,7 +1,7 @@
 package service
 
 import (
-	metadata "github.com/opensergo/opensergo-go/pkg/api"
+	metadata "github.com/opensergo/opensergo-go/pkg/api/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

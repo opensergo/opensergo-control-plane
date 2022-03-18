@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	metadata "github.com/opensergo/opensergo-go/pkg/api"
+	metadata "github.com/opensergo/opensergo-go/pkg/api/proto"
 	"go.uber.org/multierr"
 )
 

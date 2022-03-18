@@ -22,7 +22,7 @@ import (
 	"net"
 	"os"
 
-	metadata "github.com/opensergo/opensergo-go/pkg/api"
+	metadata "github.com/opensergo/opensergo-go/pkg/api/proto"
 	"github.com/opensergo/opensergo-pilot/internal/pkg/service"
 	"google.golang.org/grpc"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"

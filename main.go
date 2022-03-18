@@ -17,11 +17,14 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
+	"net"
 	"os"
 
-	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
-	// to ensure that exec-entrypoint and run can make use of them.
+	metadata "github.com/opensergo/opensergo-go/pkg/api"
+	"github.com/opensergo/opensergo-pilot/internal/pkg/service"
+	"google.golang.org/grpc"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -40,8 +43,23 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
 	//+kubebuilder:scaffold:scheme
+}
+
+// GRPCRunner implements `manager.Runnable`.
+type GRPCRunner struct {
+	server   *grpc.Server
+	listener net.Listener
+}
+
+// Start the gRPC server.  It will be gracefully shutdown when `ch` is closed.
+func (r GRPCRunner) Start(ctx context.Context) error {
+	go func() {
+		<-ctx.Done()
+		r.server.GracefulStop()
+	}()
+
+	return r.server.Serve(r.listener)
 }
 
 func main() {
@@ -73,6 +91,20 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
+
+	l, _ := net.Listen("tcp", "0.0.0.0:50051")
+	grpcServer := grpc.NewServer()
+	metadataService, err := service.NewMetadataService()
+	if err != nil {
+		setupLog.Error(err, "service.NewMetadataService failed!")
+		os.Exit(1)
+	}
+	metadata.RegisterMetadataServiceServer(grpcServer, metadataService)
+	r := GRPCRunner{
+		server:   grpcServer,
+		listener: l,
+	}
+	mgr.Add(r)
 
 	//+kubebuilder:scaffold:builder
 

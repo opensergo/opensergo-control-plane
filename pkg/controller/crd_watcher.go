@@ -98,9 +98,24 @@ func (r *CRDWatcher) RemoveSubscribeTarget(target model.SubscribeTarget) error {
 	return nil
 }
 
+func (r *CRDWatcher) HasAnySubscribedOfNamespace(namespace string) bool {
+	r.updateMux.RLock()
+	defer r.updateMux.RUnlock()
+
+	_, exist := r.subscribedNamespaces[namespace]
+	return exist
+}
+
+func (r *CRDWatcher) HasAnySubscribedOfApp(app string) bool {
+	r.updateMux.RLock()
+	defer r.updateMux.RUnlock()
+
+	_, exist := r.subscribedApps[app]
+	return exist
+}
+
 func (r *CRDWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_, exist := r.subscribedNamespaces[req.Namespace]
-	if !exist {
+	if r.HasAnySubscribedOfApp(req.Namespace) {
 		// Ignore unmatched namespace
 		return ctrl.Result{Requeue: false, RequeueAfter: 0}, nil
 	}
@@ -134,9 +149,8 @@ func (r *CRDWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if crd != nil {
 		// TODO: bugs here: we need to check for namespace-app group, not only for app.
 		// 		 And we may also need to check for namespace change of a CRD.
-		//check namespace的变更当作删除
 		app, hasAppLabel = crd.GetLabels()["app"]
-		_, appSubscribed := r.subscribedApps[app]
+		appSubscribed := r.HasAnySubscribedOfApp(app)
 		if !hasAppLabel || !appSubscribed {
 			if _, prevContains := r.crdCache.GetByNamespacedName(req.NamespacedName); prevContains {
 				log.Info("OpenSergo CRD will be deleted because app label has been changed", "newApp", app)

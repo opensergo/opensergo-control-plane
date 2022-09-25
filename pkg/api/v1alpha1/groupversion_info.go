@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package v1alpha1 contains API Schema definitions for the OpenSergo fault-tolerance v1alpha1 CRD.
+// +kubebuilder:object:generate=true
+// +groupName=fault-tolerance.opensergo.io
 package v1alpha1
 
 import (

@@ -124,17 +124,23 @@ func (k *KubernetesOperator) RegisterWatcher(target model.SubscribeTarget) (*CRD
 	var err error
 
 	existingWatcher, exists := k.controllers[target.Kind]
-	if exists && !existingWatcher.HasSubscribed(target) {
-		// TODO: think more about here
-		err = existingWatcher.AddSubscribeTarget(target)
-		if err != nil {
-			return existingWatcher, err
+	if exists {
+		if existingWatcher.HasSubscribed(target) {
+			// Target has been subscribed
+			return existingWatcher, nil
+		} else {
+			// Add subscribe to existing watcher
+			err = existingWatcher.AddSubscribeTarget(target)
+			if err != nil {
+				return nil, err
+			}
 		}
 	} else {
 		crdMetadata, crdSupports := GetCrdMetadata(target.Kind)
 		if !crdSupports {
 			return nil, errors.New("CRD not supported: " + target.Kind)
 		}
+		// This kind of CRD has never been watched.
 		crdWatcher := NewCRDWatcher(k.crdManager, target.Kind, crdMetadata.Generator(), k.sendDataHandler)
 		err = crdWatcher.AddSubscribeTarget(target)
 		if err != nil {
@@ -146,7 +152,7 @@ func (k *KubernetesOperator) RegisterWatcher(target model.SubscribeTarget) (*CRD
 		}
 		k.controllers[target.Kind] = crdWatcher
 	}
-	setupLog.Info("OpenSergo CRD watcher has been registered successfully")
+	setupLog.Info("OpenSergo CRD watcher has been registered successfully", "kind", target.Kind, "namespace", target.Namespace, "app", target.AppName)
 	return k.controllers[target.Kind], nil
 }
 

@@ -80,21 +80,29 @@ func (c *ControlPlane) sendMessage(namespace, app, kind string, dataWithVersion 
 			// TODO: log.Debug
 			continue
 		}
-		err := connection.Stream().SendMsg(&trpb.SubscribeResponse{
-			Status:          status,
-			Ack:             "",
-			Namespace:       namespace,
-			App:             app,
-			Kind:            kind,
-			DataWithVersion: dataWithVersion,
-			ControlPlane:    c.protoDesc,
-			ResponseId:      respId,
-		})
+		err := c.sendMessageToStream(connection.Stream(), namespace, app, kind, dataWithVersion, status, respId)
 		if err != nil {
+			// TODO: should not short-break here. Handle partial failure here.
 			return err
 		}
 	}
 	return nil
+}
+
+func (c *ControlPlane) sendMessageToStream(stream model.OpenSergoTransportStream, namespace, app, kind string, dataWithVersion *trpb.DataWithVersion, status *trpb.Status, respId string) error {
+	if stream == nil {
+		return nil
+	}
+	return stream.SendMsg(&trpb.SubscribeResponse{
+		Status:          status,
+		Ack:             "",
+		Namespace:       namespace,
+		App:             app,
+		Kind:            kind,
+		DataWithVersion: dataWithVersion,
+		ControlPlane:    c.protoDesc,
+		ResponseId:      respId,
+	})
 }
 
 func (c *ControlPlane) handleSubscribeRequest(clientIdentifier model.ClientIdentifier, request *trpb.SubscribeRequest, stream model.OpenSergoTransportStream) error {
@@ -119,7 +127,7 @@ func (c *ControlPlane) handleSubscribeRequest(clientIdentifier model.ClientIdent
 				Message: "Register watcher error",
 				Details: nil,
 			}
-			err = c.sendMessage(request.Target.Namespace, request.Target.App, kind, nil, status, request.RequestId)
+			err = c.sendMessageToStream(stream, request.Target.Namespace, request.Target.App, kind, nil, status, request.RequestId)
 			if err != nil {
 				// TODO: log here
 			}
@@ -141,7 +149,7 @@ func (c *ControlPlane) handleSubscribeRequest(clientIdentifier model.ClientIdent
 				Data:    rules,
 				Version: version,
 			}
-			err = c.sendMessage(request.Target.Namespace, request.Target.App, kind, dataWithVersion, status, request.RequestId)
+			err = c.sendMessageToStream(stream, request.Target.Namespace, request.Target.App, kind, dataWithVersion, status, request.RequestId)
 			if err != nil {
 				// TODO: log here
 			}

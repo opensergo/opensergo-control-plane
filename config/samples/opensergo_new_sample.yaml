@@ -1,0 +1,75 @@
+apiVersion: fault-tolerance.opensergo.io/v1alpha1
+kind: RateLimitStrategy
+metadata:
+  name: rate-limit-foo
+  labels:
+    app: foo-app
+spec:
+  metricType: RequestAmount
+  limitMode: Local
+  threshold: 3
+  statDurationSeconds: 5
+---
+apiVersion: fault-tolerance.opensergo.io/v1alpha1
+kind: FaultToleranceRule
+metadata:
+  name: my-opensergo-rule-1
+  labels:
+    app: foo-app
+spec:
+  targets:
+    - targetResourceName: 'GET:/fooa'
+  strategies:
+    - name: rate-limit-foo
+      kind: RateLimitStrategy
+---
+apiVersion: fault-tolerance.opensergo.io/v1alpha1
+kind: FaultToleranceRule
+metadata:
+  name: my-opensergo-rule-2
+  labels:
+    app: foo-app
+spec:
+  targets:
+    - targetResourceName: 'GET:/fooc'
+  strategies:
+    - name: rate-limit-foo
+      kind: RateLimitStrategy
+
+---
+apiVersion: fault-tolerance.opensergo.io/v1alpha1
+kind: ConcurrencyLimitStrategy
+metadata:
+  name: concurrency-limit-foo
+  labels:
+    app: foo-app
+spec:
+  maxConcurrency: 8
+  limitMode: 'Local'
+
+---
+apiVersion: fault-tolerance.opensergo.io/v1alpha1
+kind: ThrottlingStrategy
+metadata:
+  name: throttling-foo
+  labels:
+    app: foo-app
+spec:
+  minIntervalOfRequests: '20ms'
+  queueTimeout: '60ms'
+
+---
+apiVersion: fault-tolerance.opensergo.io/v1alpha1
+kind: CircuitBreakerStrategy
+metadata:
+  name: circuit-breaker-slow-foo
+  labels:
+    app: foo-app
+spec:
+  strategy: SlowRequestRatio
+  triggerRatio: '60%'
+  statDuration: '60s'
+  recoveryTimeout: '5s'
+  minRequestAmount: 5
+  slowConditions:
+    maxAllowedRt: '500ms'

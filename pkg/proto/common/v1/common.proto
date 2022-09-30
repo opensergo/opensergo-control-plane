@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package io.opensergo.proto.common.v1;
+
+option java_package = "io.opensergo.proto.common.v1";
+option java_outer_classname = "CommonProto";
+option java_multiple_files = true;
+option go_package = "github.com/opensergo/opensergo-control-plane/proto/common/v1";
+
+enum TimeUnit {
+  // The time unit is not known.
+  UNKNOWN = 0;
+
+  MILLISECOND = 1;
+  SECOND = 2;
+  MINUTE = 3;
+  HOUR = 4;
+  DAY = 5;
+}

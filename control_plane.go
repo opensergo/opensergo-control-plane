@@ -43,7 +43,11 @@ func NewControlPlane() (*ControlPlane, error) {
 		return nil, err
 	}
 
-	cp.server = transport.NewServer(uint32(10246), []model.SubscribeRequestHandler{cp.handleSubscribeRequest})
+	handlers := []model.SubscribeRequestHandler{
+		cp.handleSubscribeRequest,
+		cp.handleUnSubscribeRequest,
+	}
+	cp.server = transport.NewServer(uint32(10246), handlers)
 	cp.operator = operator
 
 	hostname, herr := os.Hostname()
@@ -106,7 +110,24 @@ func (c *ControlPlane) sendMessageToStream(stream model.OpenSergoTransportStream
 	})
 }
 
+func (c *ControlPlane) sendAckToStream(stream model.OpenSergoTransportStream, ack string, status *trpb.Status, respId string) error {
+	if stream == nil {
+		return nil
+	}
+	return stream.SendMsg(&trpb.SubscribeResponse{
+		Status:       status,
+		Ack:          ack,
+		ControlPlane: c.protoDesc,
+		ResponseId:   respId,
+	})
+}
+
 func (c *ControlPlane) handleSubscribeRequest(clientIdentifier model.ClientIdentifier, request *trpb.SubscribeRequest, stream model.OpenSergoTransportStream) error {
+
+	if trpb.SubscribeOpType_SUBSCRIBE != request.OpType {
+		return nil
+	}
+
 	//var labels []model.LabelKV
 	//if request.Target.Labels != nil {
 	//	for _, label := range request.Target.Labels {
@@ -158,5 +179,52 @@ func (c *ControlPlane) handleSubscribeRequest(clientIdentifier model.ClientIdent
 			}
 		}
 	}
+	return nil
+}
+
+// handleUnSubscribeRequest handle the UnSubscribeRequest request from OpenSergo SDK.
+//
+// 1.use ConnectionManager to remove from connectionMap for SubscribeTarget
+// 2.use operator to UnRegisterWatcher for SubscribeTarget which will remove SubscribeTarget, delete crdCache, and remove CrdWatcher
+func (c *ControlPlane) handleUnSubscribeRequest(clientIdentifier model.ClientIdentifier, request *trpb.SubscribeRequest, stream model.OpenSergoTransportStream) error {
+
+	if trpb.SubscribeOpType_UNSUBSCRIBE != request.OpType {
+		return nil
+	}
+
+	for _, kind := range request.Target.Kinds {
+		namespacedApp := model.NamespacedApp{
+			Namespace: request.Target.Namespace,
+			App:       request.Target.App,
+		}
+		// remove the relation of Connection and SubscribeTarget from local cache
+		err := c.server.ConnectionManager().RemoveWithIdentifier(namespacedApp, kind, clientIdentifier)
+		if err != nil {
+			log.Printf("Remove map of Connection-SubscribeTarget failed, err=%s\n", err.Error())
+			status := &trpb.Status{
+				// TODO: defined a new errorCode
+				Code:    transport.RegisterWatcherError,
+				Message: "Remove from watcher error",
+				Details: nil,
+			}
+			err = c.sendMessageToStream(stream, request.Target.Namespace, request.Target.App, kind, nil, status, request.RequestId)
+			if err != nil {
+				// TODO: log here
+				log.Printf("sendMessageToStream failed, err=%s\n", err.Error())
+			}
+			continue
+		}
+
+		// UnRegisterWatcher for SubscribeTarget
+		err = c.operator.UnRegisterWatcher(model.SubscribeTarget{
+			Namespace: request.Target.Namespace,
+			AppName:   request.Target.App,
+			Kind:      kind,
+		})
+		if err != nil {
+			log.Printf("UnRegisterWatcher failed, err=%s\n", err.Error())
+		}
+	}
+
 	return nil
 }

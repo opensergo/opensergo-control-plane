@@ -21,6 +21,8 @@ import (
 	"strconv"
 	"sync"
 
+	"go.uber.org/atomic"
+
 	"github.com/go-logr/logr"
 	crdv1alpha1 "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1"
 	crdv1alpha1traffic "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/traffic"
@@ -56,6 +58,7 @@ type CRDWatcher struct {
 	crdGenerator    func() client.Object
 	sendDataHandler model.DataEntirePushHandler
 
+	deleted   *atomic.Bool
 	updateMux sync.RWMutex
 }
 
@@ -97,7 +100,36 @@ func (r *CRDWatcher) AddSubscribeTarget(target model.SubscribeTarget) error {
 }
 
 func (r *CRDWatcher) RemoveSubscribeTarget(target model.SubscribeTarget) error {
-	// TODO: implement me
+	// TODO: validate the target
+	if target.Kind != r.kind {
+		return errors.New("target kind mismatch, expected: " + target.Kind + ", r.kind: " + r.kind)
+	}
+	r.updateMux.Lock()
+	defer r.updateMux.Unlock()
+
+	// remove from subscribedList
+	delete(r.subscribedList, target)
+
+	// if len(r.subscribedList) < 1 means there's no matched subscribeTarget in NamespacedApp,
+	// then delete subscribeTarget and crdCache which matched NamespacedApp
+	if len(r.subscribedList) < 1 {
+		delete(r.subscribedApps, target.NamespacedApp())
+		// TODO delete crdCache
+		//r.crdCache.DeleteByNamespaceApp(model.NamespacedApp{
+		//	Namespace: target.Namespace,
+		//	App:       target.AppName,
+		//}, "")
+
+		// if len(r.subscribedApps) < 1 means there's no matched subscribeTarget in Namespace,
+		// then delete subscribeTarget and crdCache which matched Namespace
+		if len(r.subscribedApps) < 1 {
+			delete(r.subscribedNamespaces, target.Namespace)
+			//	r.crdCache.DeleteByNamespacedName(model.NamespacedApp{
+			//		Namespace: target.Namespace,
+			//		App:       target.AppName,
+			//	}, "")
+		}
+	}
 
 	return nil
 }
@@ -119,6 +151,14 @@ func (r *CRDWatcher) HasAnySubscribedOfApp(app model.NamespacedApp) bool {
 }
 
 func (r *CRDWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	// TODO optimize the logic of destroy the current controller
+	//     r.deleted.Load() is a flag marked the deleted status of controller
+	//     can not destroy the current controller
+	//
+	if r.deleted.Load() {
+		return ctrl.Result{}, nil
+	}
+
 	if !r.HasAnySubscribedOfNamespace(req.Namespace) {
 		// Ignore unmatched namespace
 		return ctrl.Result{Requeue: false, RequeueAfter: 0}, nil
@@ -216,7 +256,15 @@ func (r *CRDWatcher) GetRules(n model.NamespacedApp) ([]*anypb.Any, int64) {
 }
 
 func (r *CRDWatcher) SetupWithManager(mgr ctrl.Manager) error {
+	// TODO optimized delete logic here
+	r.deleted.Store(false)
 	return ctrl.NewControllerManagedBy(mgr).For(r.crdGenerator()).Complete(r)
+}
+
+func (r *CRDWatcher) ShutdownWithManager(mgr ctrl.Manager) error {
+	// TODO optimized delete logic here
+	r.deleted.Store(true)
+	return nil
 }
 
 func (r *CRDWatcher) translateCrdToProto(object client.Object) (*anypb.Any, error) {
@@ -338,6 +386,7 @@ func NewCRDWatcher(crdManager ctrl.Manager, kind model.SubscribeKind, crdGenerat
 		subscribedNamespaces: make(map[string]bool),
 		subscribedApps:       make(map[model.NamespacedApp]bool),
 		crdGenerator:         crdGenerator,
+		deleted:              atomic.NewBool(false),
 		crdCache:             NewCRDCache(kind),
 		sendDataHandler:      sendDataHandler,
 	}

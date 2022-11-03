@@ -17,8 +17,8 @@ package controller
 import (
 	"strings"
 
-	"github.com/alibaba/sentinel-golang/logging"
 	"github.com/go-logr/logr"
+	"github.com/opensergo/opensergo-control-plane/pkg/common/logging"
 )
 
 // noopLogger is a logr.Logger that's always disabled, and does nothing.
@@ -61,13 +61,13 @@ func (k *k8SLogger) Info(msg string, keysAndValues ...interface{}) {
 	keysAndValues = append(keysAndValues, k.keysAndValues...)
 	switch k.level {
 	case logging.WarnLevel:
-		k.l.Warn(k.buildNames()+msg, keysAndValues...)
+		logging.WarnWithCallerDepth(k.l, logging.JsonFormat, 6, k.buildNames()+msg, keysAndValues...)
 	case logging.InfoLevel:
-		k.l.Info(k.buildNames()+msg, keysAndValues...)
+		logging.InfoWithCallerDepth(k.l, logging.JsonFormat, 6, k.buildNames()+msg, keysAndValues...)
 	case logging.DebugLevel:
-		k.l.Debug(k.buildNames()+msg, keysAndValues...)
+		logging.DebugWithCallerDepth(k.l, logging.JsonFormat, 6, k.buildNames()+msg, keysAndValues...)
 	default:
-		k.l.Info(k.buildNames()+msg, keysAndValues...)
+		logging.InfoWithCallerDepth(k.l, logging.JsonFormat, 6, k.buildNames()+msg, keysAndValues...)
 	}
 }
 

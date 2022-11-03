@@ -19,9 +19,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/alibaba/sentinel-golang/logging"
-	"github.com/alibaba/sentinel-golang/util"
 	crdv1alpha1 "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1"
+	"github.com/opensergo/opensergo-control-plane/pkg/common/logging"
 	"github.com/opensergo/opensergo-control-plane/pkg/model"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -76,8 +75,8 @@ type KubernetesOperator struct {
 // NewKubernetesOperator creates a OpenSergo Kubernetes operator.
 func NewKubernetesOperator(sendDataHandler model.DataEntirePushHandler) (*KubernetesOperator, error) {
 	ctrl.SetLogger(&k8SLogger{
-		l:             logging.GetGlobalLogger(),
-		level:         logging.GetGlobalLoggerLevel(),
+		l:             logging.NewConsoleLogger(logging.DebugLevel, logging.JsonFormat, false),
+		level:         logging.ConsoleLogLevel,
 		names:         make([]string, 0),
 		keysAndValues: make([]interface{}, 0),
 	})
@@ -210,14 +209,24 @@ func (k *KubernetesOperator) ComponentName() string {
 func (k *KubernetesOperator) Run() error {
 
 	// +kubebuilder:scaffold:builder
-	go util.RunWithRecover(func() {
+	go runWithRecover(func() {
 		setupLog.Info("Starting OpenSergo operator")
 		if err := k.crdManager.Start(k.ctx); err != nil {
 			setupLog.Error(err, "problem running OpenSergo operator")
 		}
 		setupLog.Info("OpenSergo operator will be closed")
 	})
+
 	return nil
+}
+
+func runWithRecover(f func()) {
+	defer func() {
+		if err := recover(); err != nil {
+			logging.Error(errors.Errorf("%+v", err), "Unexpected panic in util.RunWithRecover()")
+		}
+	}()
+	f()
 }
 
 func (k *KubernetesOperator) GetWatcher(kind string) (*CRDWatcher, bool) {

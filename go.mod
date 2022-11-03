@@ -3,7 +3,6 @@ module github.com/opensergo/opensergo-control-plane
 go 1.14
 
 require (
-	github.com/alibaba/sentinel-golang v1.0.3
 	github.com/envoyproxy/protoc-gen-validate v0.1.0
 	github.com/go-logr/logr v0.4.0
 	github.com/json-iterator/go v1.1.12 // indirect

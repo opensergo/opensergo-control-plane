@@ -36,7 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// CRDWatcher reconciles a specific CRD object.
+// CRDWatcher watches a specific kind of CRD.
 type CRDWatcher struct {
 	kind model.SubscribeKind
 
@@ -44,6 +44,10 @@ type CRDWatcher struct {
 	logger logr.Logger
 	scheme *runtime.Scheme
 
+	// crdCache represents associated local cache for current kind of CRD.
+	crdCache *CRDCache
+
+	// subscribedList consists of all subscribed target of current kind of CRD.
 	subscribedList       map[model.SubscribeTarget]bool
 	subscribedNamespaces map[string]bool
 	subscribedApps       map[string]bool
@@ -51,7 +55,6 @@ type CRDWatcher struct {
 	crdGenerator    func() client.Object
 	sendDataHandler model.DataEntirePushHandler
 
-	crdCache  *CRDCache
 	updateMux sync.RWMutex
 }
 

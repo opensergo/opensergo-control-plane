@@ -27,9 +27,12 @@ type CRDObjectsHolder struct {
 	version int64
 }
 
+// CRDCache caches versioned CRD objects in local.
 type CRDCache struct {
-	kind            string
-	crdEntityMap    map[types.NamespacedName]client.Object
+	kind string
+	// crdEntityMap represents a map: (namespace, name) -> unique CRD
+	crdEntityMap map[types.NamespacedName]client.Object
+	// namespaceAppMap represents a map for CRD group: (namespace, app) -> versionedCRDs
 	namespaceAppMap map[model.NamespacedApp]*CRDObjectsHolder
 
 	updateMux sync.RWMutex

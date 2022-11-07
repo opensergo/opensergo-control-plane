@@ -20,6 +20,8 @@ import (
 )
 
 type CRDKind = string
+
+// CRDGenerator represents a generator function of an OpenSergo CRD.
 type CRDGenerator = func() client.Object
 
 type CRDMetadata struct {

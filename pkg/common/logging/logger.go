@@ -19,6 +19,7 @@ import (
 	"reflect"
 )
 
+// Logger the common interface for logging.
 type Logger interface {
 
 	// Print logs message no format as what the msg presents.
@@ -71,14 +72,29 @@ var (
 	consoleLogger Logger
 )
 
+// Print logs message no format as what the msg presents.
 func Print(msg string) {
 	doLog("Print", nil, msg)
 }
 
+// Debug logs a non-error message with the given key/value pairs as context.
+//
+// The msg argument should be used to add some constant description to
+// the log line.  The key/value pairs can then be used to add additional
+// variable information.  The key/value pairs should alternate string
+// keys and arbitrary values.
 func Debug(msg string, keysAndValues ...interface{}) {
 	doLog("Debug", nil, msg, keysAndValues...)
 }
 
+// DebugWithCallerDepth logs a non-error message with the given key/value pairs as context.
+//
+// logCallerDepth: to calculate the caller:line
+//
+// The msg argument should be used to add some constant description to
+// the log line.  The key/value pairs can then be used to add additional
+// variable information.  The key/value pairs should alternate string
+// keys and arbitrary values.
 func DebugWithCallerDepth(logger Logger, logFormat LogFormat, logCallerDepth int, msg string, keysAndValues ...interface{}) {
 	if !logger.DebugEnabled() {
 		return
@@ -86,10 +102,24 @@ func DebugWithCallerDepth(logger Logger, logFormat LogFormat, logCallerDepth int
 	logger.Print(AssembleMsg(logFormat, logCallerDepth, "DEBUG", msg, nil, false, keysAndValues...))
 }
 
+// Info logs a non-error message with the given key/value pairs as context.
+//
+// The msg argument should be used to add some constant description to
+// the log line.  The key/value pairs can then be used to add additional
+// variable information.  The key/value pairs should alternate string
+// keys and arbitrary values.
 func Info(msg string, keysAndValues ...interface{}) {
 	doLog("Info", nil, msg, keysAndValues...)
 }
 
+// InfoWithCallerDepth logs a non-error message with the given key/value pairs as context.
+//
+// logCallerDepth: to calculate the caller:line
+//
+// The msg argument should be used to add some constant description to
+// the log line.  The key/value pairs can then be used to add additional
+// variable information.  The key/value pairs should alternate string
+// keys and arbitrary values.
 func InfoWithCallerDepth(logger Logger, logFormat LogFormat, logCallerDepth int, msg string, keysAndValues ...interface{}) {
 	if !logger.InfoEnabled() {
 		return
@@ -97,10 +127,24 @@ func InfoWithCallerDepth(logger Logger, logFormat LogFormat, logCallerDepth int,
 	logger.Print(AssembleMsg(logFormat, logCallerDepth, "INFO", msg, nil, false, keysAndValues...))
 }
 
+// Warn logs a non-error message with the given key/value pairs as context.
+//
+// The msg argument should be used to add some constant description to
+// the log line.  The key/value pairs can then be used to add additional
+// variable information.  The key/value pairs should alternate string
+// keys and arbitrary values.
 func Warn(msg string, keysAndValues ...interface{}) {
 	doLog("Warn", nil, msg, keysAndValues...)
 }
 
+// WarnWithCallerDepth logs a non-error message with the given key/value pairs as context.
+//
+// logCallerDepth: to calculate the caller:line
+//
+// The msg argument should be used to add some constant description to
+// the log line.  The key/value pairs can then be used to add additional
+// variable information.  The key/value pairs should alternate string
+// keys and arbitrary values.
 func WarnWithCallerDepth(logger Logger, logFormat LogFormat, logCallerDepth int, msg string, keysAndValues ...interface{}) {
 	if !logger.WarnEnabled() {
 		return
@@ -109,10 +153,24 @@ func WarnWithCallerDepth(logger Logger, logFormat LogFormat, logCallerDepth int,
 	logger.Print(AssembleMsg(logFormat, logCallerDepth, "WARN", msg, nil, false, keysAndValues...))
 }
 
+// Error logs an error message with error and the given key/value pairs as context.
+//
+// The msg argument should be used to add some constant description to
+// the log line.  The key/value pairs can then be used to add additional
+// variable information.  The key/value pairs should alternate string
+// keys and arbitrary values.
 func Error(err error, msg string, keysAndValues ...interface{}) {
 	doLog("Error", err, msg, keysAndValues...)
 }
 
+// ErrorWithCallerDepth logs an error message with error and the given key/value pairs as context.
+//
+// logCallerDepth: to calculate the caller:line
+//
+// The msg argument should be used to add some constant description to
+// the log line.  The key/value pairs can then be used to add additional
+// variable information.  The key/value pairs should alternate string
+// keys and arbitrary values.
 func ErrorWithCallerDepth(logger Logger, logFormat LogFormat, logCallerDepth int, err error, errorWithStack bool, msg string, keysAndValues ...interface{}) {
 	if !logger.ErrorEnabled() {
 		return

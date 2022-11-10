@@ -93,8 +93,6 @@ func (l *DefaultLogger) ErrorEnabled() bool {
 }
 
 // NewDefaultFileLogger
-// filePath $HOME/logs/opensergo/opensergo-universal-transport-service.log
-// loggerName FileLoggerName
 // LoggerLevel DefaultLogLevel
 func NewDefaultFileLogger(logLevel Level) (Logger, error) {
 	// log dir of 'OpenSergo universal transport service'
@@ -108,6 +106,7 @@ func NewDefaultFileLogger(logLevel Level) (Logger, error) {
 	return NewFileLogger(filePath, logLevel, JsonFormat, DefaultErrorWithStack)
 }
 
+// create a file to write log.
 func mkdirLogFile(filePath string) {
 	dir := filepath.Dir(filePath)
 
@@ -124,7 +123,7 @@ func mkdirLogFile(filePath string) {
 
 }
 
-// NewFileLogger
+// NewFileLogger new a Logger which write logs into file. And append the LoggerSlice.
 // filepath is the full path(absolute path). eg: /root/logs/opensergo/opensergo-universal-transport-service.log
 func NewFileLogger(filepath string, loggerLevel Level, logFormat LogFormat, errorWithStack bool) (Logger, error) {
 	mkdirLogFile(filepath)
@@ -142,12 +141,16 @@ func NewFileLogger(filepath string, loggerLevel Level, logFormat LogFormat, erro
 	return defaultLogger, err
 }
 
+// NewDefaultConsoleLogger new a default ConsoleLogger to print logs in console.
+// And there is only one ConsoleLogger instance in the Global.
 func NewDefaultConsoleLogger(logLevel Level) Logger {
 	defaultLogger := NewConsoleLogger(logLevel, ConsoleLogFormat, DefaultErrorWithStack)
 	SetConsoleLogger(defaultLogger)
 	return defaultLogger
 }
 
+// NewConsoleLogger new a ConsoleLogger to print logs in console.
+// And there is only one ConsoleLogger instance in the Global.
 func NewConsoleLogger(logLevel Level, logFormat LogFormat, errorWithStack bool) Logger {
 	defaultLogger := &DefaultLogger{
 		Logger:         log.New(os.Stdout, "", 0),

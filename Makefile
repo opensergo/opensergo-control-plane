@@ -17,16 +17,29 @@ BUILD_DIR=build
 SRC_MAIN=pkg/main/main.go
 .DEFAULT_GOAL=build
 
+
+.PHONY: all
+all: clean fmt test build
+
+
+.PHONY: build
 build:
 	go build -o ${BUILD_DIR}/${BIN_NAME} ${SRC_MAIN}
 
+
+.PHONY: run
 run:
 	go run ${SRC_MAIN}
 
-
+.PHONY: clean
 clean:
 	go clean
 	rm -rf ${BUILD_DIR}
 
+.PHONY: test
 test:
 	go test
+
+.PHONY: fmt
+fmt:
+	go fmt

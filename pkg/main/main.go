@@ -15,13 +15,18 @@
 package main
 
 import (
+	"github.com/opensergo/opensergo-control-plane/pkg/options"
 	"log"
 
 	"github.com/opensergo/opensergo-control-plane"
 )
 
 func main() {
-	cp, err := opensergo.NewControlPlane()
+	opts, err := options.NewOption()
+	if err != nil {
+		log.Fatal(err)
+	}
+	cp, err := opensergo.NewControlPlane(opts)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -15,14 +15,17 @@
 package opensergo
 
 import (
-	"os"
-	"sync"
-
+	"github.com/avast/retry-go/v4"
 	"github.com/opensergo/opensergo-control-plane/pkg/controller"
 	"github.com/opensergo/opensergo-control-plane/pkg/model"
+	"github.com/opensergo/opensergo-control-plane/pkg/options"
 	trpb "github.com/opensergo/opensergo-control-plane/pkg/proto/transport/v1"
 	transport "github.com/opensergo/opensergo-control-plane/pkg/transport/grpc"
 	"github.com/pkg/errors"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"os"
+	"sync"
 )
 
 type ControlPlane struct {
@@ -31,11 +34,14 @@ type ControlPlane struct {
 
 	protoDesc *trpb.ControlPlaneDesc
 
+	opts *options.Options
+
 	mux sync.RWMutex
 }
 
-func NewControlPlane() (*ControlPlane, error) {
+func NewControlPlane(opts *options.Options) (*ControlPlane, error) {
 	cp := &ControlPlane{}
+	cp.opts = opts
 
 	operator, err := controller.NewKubernetesOperator(cp.sendMessage)
 	if err != nil {
@@ -89,20 +95,34 @@ func (c *ControlPlane) sendMessage(namespace, app, kind string, dataWithVersion 
 	return nil
 }
 
-func (c *ControlPlane) sendMessageToStream(stream model.OpenSergoTransportStream, namespace, app, kind string, dataWithVersion *trpb.DataWithVersion, status *trpb.Status, respId string) error {
+func (c *ControlPlane) sendMessageToStream(stream model.OpenSergoTransportStream, namespace, app, kind string, dataWithVersion *trpb.DataWithVersion, trpbStatus *trpb.Status, respId string) error {
 	if stream == nil {
 		return nil
 	}
-	return stream.SendMsg(&trpb.SubscribeResponse{
-		Status:          status,
-		Ack:             "",
-		Namespace:       namespace,
-		App:             app,
-		Kind:            kind,
-		DataWithVersion: dataWithVersion,
-		ControlPlane:    c.protoDesc,
-		ResponseId:      respId,
-	})
+
+	return retry.Do(
+		func() error {
+			error := stream.SendMsg(&trpb.SubscribeResponse{
+				Status:          trpbStatus,
+				Ack:             "",
+				Namespace:       namespace,
+				App:             app,
+				Kind:            kind,
+				DataWithVersion: dataWithVersion,
+				ControlPlane:    c.protoDesc,
+				ResponseId:      respId,
+			})
+
+			return error
+		},
+		retry.Attempts(uint(c.opts.ConfigPushMaxAttempt)),
+		retry.RetryIf(func(err error) bool {
+			s, _ := status.FromError(err)
+			if s.Code() == codes.DeadlineExceeded {
+				return true
+			}
+			return false
+		}))
 }
 
 func (c *ControlPlane) handleSubscribeRequest(clientIdentifier model.ClientIdentifier, request *trpb.SubscribeRequest, stream model.OpenSergoTransportStream) error {

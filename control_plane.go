@@ -21,9 +21,8 @@ import (
 	"github.com/opensergo/opensergo-control-plane/pkg/options"
 	trpb "github.com/opensergo/opensergo-control-plane/pkg/proto/transport/v1"
 	transport "github.com/opensergo/opensergo-control-plane/pkg/transport/grpc"
+	"github.com/opensergo/opensergo-control-plane/pkg/util"
 	"github.com/pkg/errors"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"os"
 	"sync"
 )
@@ -116,13 +115,7 @@ func (c *ControlPlane) sendMessageToStream(stream model.OpenSergoTransportStream
 			return error
 		},
 		retry.Attempts(uint(c.opts.ConfigPushMaxAttempt)),
-		retry.RetryIf(func(err error) bool {
-			s, _ := status.FromError(err)
-			if s.Code() == codes.DeadlineExceeded {
-				return true
-			}
-			return false
-		}))
+		retry.RetryIf(util.TimeoutCondition))
 }
 
 func (c *ControlPlane) handleSubscribeRequest(clientIdentifier model.ClientIdentifier, request *trpb.SubscribeRequest, stream model.OpenSergoTransportStream) error {

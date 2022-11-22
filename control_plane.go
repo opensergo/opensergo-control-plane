@@ -15,6 +15,7 @@
 package opensergo
 
 import (
+	"log"
 	"os"
 	"sync"
 
@@ -130,6 +131,7 @@ func (c *ControlPlane) handleSubscribeRequest(clientIdentifier model.ClientIdent
 			err = c.sendMessageToStream(stream, request.Target.Namespace, request.Target.App, kind, nil, status, request.RequestId)
 			if err != nil {
 				// TODO: log here
+				log.Printf("sendMessageToStream failed, err=%s\n", err.Error())
 			}
 			continue
 		}
@@ -152,6 +154,7 @@ func (c *ControlPlane) handleSubscribeRequest(clientIdentifier model.ClientIdent
 			err = c.sendMessageToStream(stream, request.Target.Namespace, request.Target.App, kind, dataWithVersion, status, request.RequestId)
 			if err != nil {
 				// TODO: log here
+				log.Printf("sendMessageToStream failed, err=%s\n", err.Error())
 			}
 		}
 	}

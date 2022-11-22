@@ -148,10 +148,10 @@ func (r *CRDWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	app := ""
-	hasAppLabel := true
 	if crd != nil {
 		// TODO: bugs here: we need to check for namespace-app group, not only for app.
 		// 		 And we may also need to check for namespace change of a CRD.
+		var hasAppLabel bool
 		app, hasAppLabel = crd.GetLabels()["app"]
 		appSubscribed := r.HasAnySubscribedOfApp(app)
 		if !hasAppLabel || !appSubscribed {

@@ -15,9 +15,10 @@
 package util
 
 import (
-	pb "github.com/opensergo/opensergo-control-plane/pkg/proto/fault_tolerance/v1"
 	"strconv"
 	"strings"
+
+	pb "github.com/opensergo/opensergo-control-plane/pkg/proto/fault_tolerance/v1"
 )
 
 func Str2MillSeconds(timeStr string) (int64, error) {

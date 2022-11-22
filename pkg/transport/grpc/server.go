@@ -16,14 +16,15 @@ package grpc
 
 import (
 	"fmt"
+	"io"
+	"log"
+	"net"
+
 	"github.com/opensergo/opensergo-control-plane/pkg/model"
 	trpb "github.com/opensergo/opensergo-control-plane/pkg/proto/transport/v1"
 	"github.com/opensergo/opensergo-control-plane/pkg/util"
 	"go.uber.org/atomic"
 	"google.golang.org/grpc"
-	"io"
-	"log"
-	"net"
 )
 
 const (
@@ -117,8 +118,10 @@ func (s *TransportServer) SubscribeConfig(stream trpb.OpenSergoUniversalTranspor
 			// This indicates the received data is a response of push-failure.
 			if recvData.Status.Code == CheckFormatError {
 				// TODO: handle here (cannot retry)
+				log.Println("Client response CheckFormatError")
 			} else {
 				// TODO: record error here and do something
+				log.Printf("Client response NACK, code=%d\n", recvData.Status.Code)
 			}
 		} else {
 			// This indicates the received data is a SubscribeRequest.
@@ -150,7 +153,6 @@ func (s *TransportServer) SubscribeConfig(stream trpb.OpenSergoUniversalTranspor
 		}
 
 	}
-	return nil
 }
 
 func newTransportServer(connectionManager *ConnectionManager, subscribeHandlers []model.SubscribeRequestHandler) *TransportServer {

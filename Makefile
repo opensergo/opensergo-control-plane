@@ -268,3 +268,28 @@ catalog-build: opm ## Build a catalog image.
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 
+# protobuf
+PROTOC ?= $(LOCALBIN)/bin/protoc
+PROTO_GEN_GO ?= $(GOBIN)/proto-gen-go
+PROTO_GEN_GO_VERSION ?= v1.20.0
+
+PROTOBUF_RELEASE ?= https://github.com/protocolbuffers/protobuf/releases
+PROTOBUF_VERSION ?= v3.14.0
+
+.PHONY: protoc
+protoc: $(PROTOC) ## Download protoc locally if necessary.
+$(PROTOC): $(LOCALBIN)
+	test -s $(LOCALBIN)/bin/protoc || { curl -sSLO $(PROTOBUF_RELEASE)/download/$(PROTOBUF_VERSION)/protoc-$(subst v,,$(PROTOBUF_VERSION))-linux-x86_64.zip \
+	&& unzip -qq protoc-$(subst v,,$(PROTOBUF_VERSION))-linux-x86_64.zip -d $(LOCALBIN) \
+	&& rm protoc-$(subst v,,$(PROTOBUF_VERSION))-linux-x86_64.zip; }
+
+.PHONY: proto-gen
+proto-gen: protoc ## Generate protobuf/gRPC interface code
+	pushd proto; \
+	$(PROTOC) --go_out=.  --go_opt=paths=source_relative   --go-grpc_out=. --go-grpc_opt=paths=source_relative  common/v1/common.proto
+	echo $(shell pwd)
+
+.PHONY: proto-gen-go
+proto-gen-go: $(PROTO_GEN_GO) ## Download proto-gen-go locally if necessary.
+$(PROTO_GEN_GO): $(LOCALBIN)
+	test -s $(GOBIN)/proto-gen-go || go install google.golang.org/protobuf/cmd/protoc-gen-go@$(PROTO_GEN_GO_VERSION)

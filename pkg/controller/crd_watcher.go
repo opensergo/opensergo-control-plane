@@ -16,15 +16,13 @@ package controller
 
 import (
 	"context"
-	"log"
-	"net/http"
-	"strconv"
-	"sync"
-
+	v32 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"github.com/go-logr/logr"
 	crdv1alpha1 "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1"
+	crdv1beta1 "github.com/opensergo/opensergo-control-plane/pkg/api/v1beta1/networking"
 	"github.com/opensergo/opensergo-control-plane/pkg/model"
 	pb "github.com/opensergo/opensergo-control-plane/pkg/proto/fault_tolerance/v1"
+	v3 "github.com/opensergo/opensergo-control-plane/pkg/proto/router/v3"
 	trpb "github.com/opensergo/opensergo-control-plane/pkg/proto/transport/v1"
 	"github.com/opensergo/opensergo-control-plane/pkg/util"
 	"github.com/pkg/errors"
@@ -32,8 +30,12 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 	k8sApiError "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"log"
+	"net/http"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"strconv"
+	"sync"
 )
 
 // CRDWatcher watches a specific kind of CRD.
@@ -314,6 +316,20 @@ func (r *CRDWatcher) translateCrdToProto(object client.Object) (*anypb.Any, erro
 			LimitMode:      util.Str2LimitNode(cls.Spec.LimitMode),
 			MaxConcurrency: cls.Spec.MaxConcurrencyThreshold,
 		}
+	case VirtualServiceKind:
+		cls := object.(*crdv1beta1.VirtualService)
+		virtualHost := &v3.VirtualHost{
+			Name:   cls.Name,
+			Routes: []*v3.Route{},
+		}
+		virtualHost.Routes = append(virtualHost.Routes, buildHTTPRoutes(cls)...)
+		for _, domain := range cls.Spec.Hosts {
+			virtualHost.Domains = append(virtualHost.Domains, buildFQDN(domain, cls.Namespace))
+		}
+		rule = &v3.RouteConfiguration{
+			Name:         cls.Name,
+			VirtualHosts: []*v3.VirtualHost{virtualHost},
+		}
 	default:
 		return nil, nil
 	}
@@ -324,6 +340,62 @@ func (r *CRDWatcher) translateCrdToProto(object client.Object) (*anypb.Any, erro
 	}
 	return packRule, nil
 
+}
+
+func buildHTTPRoutes(vs *crdv1beta1.VirtualService) []*v3.Route {
+	var routes []*v3.Route
+	for _, httpRoute := range vs.Spec.Http {
+		route := &v3.Route{
+			Match: &v3.RouteMatch{
+				Headers:         buildHeaderMatchers(httpRoute.Match),
+				QueryParameters: buildParamMatchers(httpRoute.Match),
+			},
+			Action: &v3.Route_Route{
+				Route: &v3.RouteAction{
+					// TODO: There is only one destination cluster info
+					ClusterSpecifier: &v3.RouteAction_Cluster{Cluster: buildRouteActionCluster(httpRoute.Route[0].Destination.Host, vs.Namespace, httpRoute.Route[0].Destination.Subset)},
+				},
+			},
+		}
+		routes = append(routes, route)
+	}
+	return routes
+}
+
+func buildRouteActionCluster(serviceName, namespace, version string) string {
+	return "outbound|" + "|" + version + "|" + buildFQDN(serviceName, namespace)
+}
+
+func buildParamMatchers(matches []*crdv1beta1.HTTPMatchRequest) []*v3.QueryParameterMatcher {
+	var queryParamMatchers []*v3.QueryParameterMatcher
+	for _, match := range matches {
+		for _, matcher := range match.QueryParams {
+			queryParamMatchers = append(queryParamMatchers, &v3.QueryParameterMatcher{
+				QueryParameterMatchSpecifier: &v3.QueryParameterMatcher_StringMatch{
+					StringMatch: &v32.StringMatcher{
+						MatchPattern: &v32.StringMatcher_Exact{Exact: matcher.GetExact()},
+					},
+				},
+			})
+		}
+	}
+	return queryParamMatchers
+}
+
+func buildHeaderMatchers(matches []*crdv1beta1.HTTPMatchRequest) []*v3.HeaderMatcher {
+	var headerMatchers []*v3.HeaderMatcher
+	for _, match := range matches {
+		for _, matcher := range match.Headers {
+			headerMatchers = append(headerMatchers, &v3.HeaderMatcher{
+				HeaderMatchSpecifier: &v3.HeaderMatcher_ExactMatch{ExactMatch: matcher.GetExact()},
+			})
+		}
+	}
+	return headerMatchers
+}
+
+func buildFQDN(serviceName, namespace string) string {
+	return serviceName + "." + namespace + ".svc.cluster.local"
 }
 
 func NewCRDWatcher(crdManager ctrl.Manager, kind model.SubscribeKind, crdGenerator func() client.Object, sendDataHandler model.DataEntirePushHandler) *CRDWatcher {

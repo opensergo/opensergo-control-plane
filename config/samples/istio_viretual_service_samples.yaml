@@ -1,0 +1,21 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: c
+  namespace: default
+spec:
+  hosts:
+    - c
+  http:
+    - match:
+        - headers:
+            x-mse-tag:
+              exact: v2
+      route:
+        - destination:
+            host: c
+            subset: v3
+    - route:
+        - destination:
+            host: c
+            subset: v1

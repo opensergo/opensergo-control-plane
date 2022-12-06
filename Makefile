@@ -123,7 +123,7 @@ test: manifests generate fmt vet envtest ## Run tests.
 
 .PHONY: build
 build: generate fmt vet ## Build manager binary.
-	go build -o bin/manager main.go
+	go build -o bin/manager ./pkg/main/main.go
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
@@ -268,10 +268,12 @@ catalog-build: opm ## Build a catalog image.
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 
-# protobuf
+# protobuf/grpc
 PROTOC ?= $(LOCALBIN)/bin/protoc
 PROTO_GEN_GO ?= $(GOBIN)/proto-gen-go
+PROTO_GEN_GO_GRPC ?= $(GOBIN)/proto-gen-go-grpc
 PROTO_GEN_GO_VERSION ?= v1.20.0
+PROTO_GEN_GO_GRPC_VERSION ?= v1.2.0
 
 PROTOBUF_RELEASE ?= https://github.com/protocolbuffers/protobuf/releases
 PROTOBUF_VERSION ?= v3.14.0
@@ -283,13 +285,20 @@ $(PROTOC): $(LOCALBIN)
 	&& unzip -qq protoc-$(subst v,,$(PROTOBUF_VERSION))-linux-x86_64.zip -d $(LOCALBIN) \
 	&& rm protoc-$(subst v,,$(PROTOBUF_VERSION))-linux-x86_64.zip; }
 
-.PHONY: proto-gen
-proto-gen: protoc ## Generate protobuf/gRPC interface code
-	pushd proto; \
-	$(PROTOC) --go_out=.  --go_opt=paths=source_relative   --go-grpc_out=. --go-grpc_opt=paths=source_relative  common/v1/common.proto
-	echo $(shell pwd)
+.PHONY: proto
+proto: protoc proto-gen-go proto-gen-go-grpc ## Generate protobuf/gRPC interface code
+	cd pkg/proto && $(PROTOC) --go_out=.  --go_opt=paths=source_relative   --go-grpc_out=. --go-grpc_opt=paths=source_relative common/v1/common.proto
+	cd pkg/proto && $(PROTOC) --go_out=.  --go_opt=paths=source_relative   --go-grpc_out=. --go-grpc_opt=paths=source_relative fault_tolerance/v1/fault_tolerance.proto 
+	cd pkg/proto && $(PROTOC) --go_out=.  --go_opt=paths=source_relative   --go-grpc_out=. --go-grpc_opt=paths=source_relative transport/v1/protocol.proto
+	cd pkg/proto && $(PROTOC) --go_out=.  --go_opt=paths=source_relative   --go-grpc_out=. --go-grpc_opt=paths=source_relative validate/v1/validate.proto
+
 
 .PHONY: proto-gen-go
 proto-gen-go: $(PROTO_GEN_GO) ## Download proto-gen-go locally if necessary.
 $(PROTO_GEN_GO): $(LOCALBIN)
 	test -s $(GOBIN)/proto-gen-go || go install google.golang.org/protobuf/cmd/protoc-gen-go@$(PROTO_GEN_GO_VERSION)
+
+.PHONY: proto-gen-go-grpc
+proto-gen-go-grpc: $(PROTO_GEN_GO_GRPC) ## Download proto-gen-go locally if necessary.
+$(PROTO_GEN_GO_GRPC): $(LOCALBIN)
+	test -s $(GOBIN)/proto-gen-go-grpc || go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@$(PROTO_GEN_GO_GRPC_VERSION)

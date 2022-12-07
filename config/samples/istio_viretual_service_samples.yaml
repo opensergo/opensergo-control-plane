@@ -1,11 +1,13 @@
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
-  name: c
+  name: service-provider
   namespace: default
+  labels:
+    app: service-provider
 spec:
   hosts:
-    - c
+    - service-provider
   http:
     - match:
         - headers:
@@ -13,9 +15,12 @@ spec:
               exact: v2
       route:
         - destination:
-            host: c
-            subset: v3
+            host: service-provider
+            subset: v2
+            fallback:
+              host: service-provider
+              subset: v1
     - route:
         - destination:
-            host: c
+            host: service-provider
             subset: v1

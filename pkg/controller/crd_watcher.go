@@ -16,6 +16,7 @@ package controller
 
 import (
 	"context"
+	v31 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	v32 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"github.com/go-logr/logr"
 	crdv1alpha1 "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1"
@@ -351,15 +352,56 @@ func buildHTTPRoutes(vs *crdv1beta1.VirtualService) []*v3.Route {
 				QueryParameters: buildParamMatchers(httpRoute.Match),
 			},
 			Action: &v3.Route_Route{
-				Route: &v3.RouteAction{
-					// TODO: There is only one destination cluster info
-					ClusterSpecifier: &v3.RouteAction_Cluster{Cluster: buildRouteActionCluster(httpRoute.Route[0].Destination.Host, vs.Namespace, httpRoute.Route[0].Destination.Subset)},
-				},
+				Route: buildRouteAction(httpRoute, vs),
 			},
 		}
 		routes = append(routes, route)
 	}
 	return routes
+}
+
+func buildRouteAction(httpRoute *crdv1beta1.HTTPRoute, vs *crdv1beta1.VirtualService) *v3.RouteAction {
+	if httpRoute.Route[0].Destination.Fallback != nil {
+		return &v3.RouteAction{
+			ClusterSpecifier: &v3.RouteAction_InlineClusterSpecifierPlugin{
+				InlineClusterSpecifierPlugin: buildClusterSpecifierPlugin(true,
+					buildClusterFallbackConfig(buildRouteActionCluster(httpRoute.Route[0].Destination.Host, vs.Namespace, httpRoute.Route[0].Destination.Subset),
+						buildRouterFallbackActionCluster(httpRoute.Route[0].Destination.Fallback, vs.Namespace)))}}
+	} else {
+		return &v3.RouteAction{
+			// TODO: There is only one destination cluster info
+			ClusterSpecifier: &v3.RouteAction_Cluster{Cluster: buildRouteActionCluster(httpRoute.Route[0].Destination.Host, vs.Namespace, httpRoute.Route[0].Destination.Subset)},
+		}
+	}
+}
+
+func buildRouterFallbackActionCluster(fallback *crdv1beta1.Fallback, namespace string) string {
+	if fallback == nil {
+		return ""
+	}
+
+	return buildRouteActionCluster(fallback.Host, namespace, fallback.Subset)
+}
+
+func buildClusterFallbackConfig(cluster string, fallbackCluster string) *v3.ClusterFallbackConfig_ClusterConfig {
+
+	return &v3.ClusterFallbackConfig_ClusterConfig{
+		RoutingCluster:  cluster,
+		FallbackCluster: fallbackCluster,
+	}
+}
+
+func buildClusterSpecifierPlugin(isSupport bool, config *v3.ClusterFallbackConfig_ClusterConfig) *v3.ClusterSpecifierPlugin {
+	if !isSupport || config == nil {
+		return nil
+	}
+
+	return &v3.ClusterSpecifierPlugin{
+		Extension: &v31.TypedExtensionConfig{
+			Name:        "envoy.router.cluster_specifier_plugin.cluster_fallback",
+			TypedConfig: util.MessageToAny(config),
+		},
+	}
 }
 
 func buildRouteActionCluster(serviceName, namespace, version string) string {
@@ -385,9 +427,10 @@ func buildParamMatchers(matches []*crdv1beta1.HTTPMatchRequest) []*v3.QueryParam
 func buildHeaderMatchers(matches []*crdv1beta1.HTTPMatchRequest) []*v3.HeaderMatcher {
 	var headerMatchers []*v3.HeaderMatcher
 	for _, match := range matches {
-		for _, matcher := range match.Headers {
+		for key, matcher := range match.Headers {
 			headerMatchers = append(headerMatchers, &v3.HeaderMatcher{
 				HeaderMatchSpecifier: &v3.HeaderMatcher_ExactMatch{ExactMatch: matcher.GetExact()},
+				Name:                 key,
 			})
 		}
 	}

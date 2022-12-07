@@ -330,6 +330,61 @@ func (x *Vhds) GetConfigSource() *v3.ConfigSource {
 	return nil
 }
 
+type ClusterFallbackConfig_ClusterConfig struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	RoutingCluster  string `protobuf:"bytes,1,opt,name=RoutingCluster,proto3" json:"RoutingCluster,omitempty"`
+	FallbackCluster string `protobuf:"bytes,2,opt,name=FallbackCluster,proto3" json:"FallbackCluster,omitempty"`
+}
+
+func (x *ClusterFallbackConfig_ClusterConfig) Reset() {
+	*x = ClusterFallbackConfig_ClusterConfig{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_envoy_config_route_v3_route_proto_msgTypes[2]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ClusterFallbackConfig_ClusterConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClusterFallbackConfig_ClusterConfig) ProtoMessage() {}
+
+func (x *ClusterFallbackConfig_ClusterConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_envoy_config_route_v3_route_proto_msgTypes[2]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClusterFallbackConfig_ClusterConfig.ProtoReflect.Descriptor instead.
+func (*ClusterFallbackConfig_ClusterConfig) Descriptor() ([]byte, []int) {
+	return file_envoy_config_route_v3_route_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ClusterFallbackConfig_ClusterConfig) GetRoutingCluster() string {
+	if x != nil {
+		return x.RoutingCluster
+	}
+	return ""
+}
+
+func (x *ClusterFallbackConfig_ClusterConfig) GetFallbackCluster() string {
+	if x != nil {
+		return x.FallbackCluster
+	}
+	return ""
+}
+
 var File_envoy_config_route_v3_route_proto protoreflect.FileDescriptor
 
 var file_envoy_config_route_v3_route_proto_rawDesc = []byte{
@@ -453,16 +508,24 @@ var file_envoy_config_route_v3_route_proto_rawDesc = []byte{
 	0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x53, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x42, 0x08, 0xfa, 0x42,
 	0x05, 0x8a, 0x01, 0x02, 0x10, 0x01, 0x52, 0x0c, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x53, 0x6f,
 	0x75, 0x72, 0x63, 0x65, 0x3a, 0x18, 0x9a, 0xc5, 0x88, 0x1e, 0x13, 0x0a, 0x11, 0x65, 0x6e, 0x76,
-	0x6f, 0x79, 0x2e, 0x61, 0x70, 0x69, 0x2e, 0x76, 0x32, 0x2e, 0x56, 0x68, 0x64, 0x73, 0x42, 0x81,
-	0x01, 0x0a, 0x23, 0x69, 0x6f, 0x2e, 0x65, 0x6e, 0x76, 0x6f, 0x79, 0x70, 0x72, 0x6f, 0x78, 0x79,
-	0x2e, 0x65, 0x6e, 0x76, 0x6f, 0x79, 0x2e, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x2e, 0x72, 0x6f,
-	0x75, 0x74, 0x65, 0x2e, 0x76, 0x33, 0x42, 0x0a, 0x52, 0x6f, 0x75, 0x74, 0x65, 0x50, 0x72, 0x6f,
-	0x74, 0x6f, 0x50, 0x01, 0x5a, 0x44, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d,
-	0x2f, 0x65, 0x6e, 0x76, 0x6f, 0x79, 0x70, 0x72, 0x6f, 0x78, 0x79, 0x2f, 0x67, 0x6f, 0x2d, 0x63,
-	0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2d, 0x70, 0x6c, 0x61, 0x6e, 0x65, 0x2f, 0x65, 0x6e, 0x76,
-	0x6f, 0x79, 0x2f, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x2f, 0x72, 0x6f, 0x75, 0x74, 0x65, 0x2f,
-	0x76, 0x33, 0x3b, 0x72, 0x6f, 0x75, 0x74, 0x65, 0x76, 0x33, 0xba, 0x80, 0xc8, 0xd1, 0x06, 0x02,
-	0x10, 0x02, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x6f, 0x79, 0x2e, 0x61, 0x70, 0x69, 0x2e, 0x76, 0x32, 0x2e, 0x56, 0x68, 0x64, 0x73, 0x22, 0x77,
+	0x0a, 0x23, 0x43, 0x6c, 0x75, 0x73, 0x74, 0x65, 0x72, 0x46, 0x61, 0x6c, 0x6c, 0x62, 0x61, 0x63,
+	0x6b, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x5f, 0x43, 0x6c, 0x75, 0x73, 0x74, 0x65, 0x72, 0x43,
+	0x6f, 0x6e, 0x66, 0x69, 0x67, 0x12, 0x26, 0x0a, 0x0e, 0x52, 0x6f, 0x75, 0x74, 0x69, 0x6e, 0x67,
+	0x43, 0x6c, 0x75, 0x73, 0x74, 0x65, 0x72, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0e, 0x52,
+	0x6f, 0x75, 0x74, 0x69, 0x6e, 0x67, 0x43, 0x6c, 0x75, 0x73, 0x74, 0x65, 0x72, 0x12, 0x28, 0x0a,
+	0x0f, 0x46, 0x61, 0x6c, 0x6c, 0x62, 0x61, 0x63, 0x6b, 0x43, 0x6c, 0x75, 0x73, 0x74, 0x65, 0x72,
+	0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0f, 0x46, 0x61, 0x6c, 0x6c, 0x62, 0x61, 0x63, 0x6b,
+	0x43, 0x6c, 0x75, 0x73, 0x74, 0x65, 0x72, 0x42, 0x81, 0x01, 0x0a, 0x23, 0x69, 0x6f, 0x2e, 0x65,
+	0x6e, 0x76, 0x6f, 0x79, 0x70, 0x72, 0x6f, 0x78, 0x79, 0x2e, 0x65, 0x6e, 0x76, 0x6f, 0x79, 0x2e,
+	0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x2e, 0x72, 0x6f, 0x75, 0x74, 0x65, 0x2e, 0x76, 0x33, 0x42,
+	0x0a, 0x52, 0x6f, 0x75, 0x74, 0x65, 0x50, 0x72, 0x6f, 0x74, 0x6f, 0x50, 0x01, 0x5a, 0x44, 0x67,
+	0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x65, 0x6e, 0x76, 0x6f, 0x79, 0x70,
+	0x72, 0x6f, 0x78, 0x79, 0x2f, 0x67, 0x6f, 0x2d, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x6f, 0x6c, 0x2d,
+	0x70, 0x6c, 0x61, 0x6e, 0x65, 0x2f, 0x65, 0x6e, 0x76, 0x6f, 0x79, 0x2f, 0x63, 0x6f, 0x6e, 0x66,
+	0x69, 0x67, 0x2f, 0x72, 0x6f, 0x75, 0x74, 0x65, 0x2f, 0x76, 0x33, 0x3b, 0x72, 0x6f, 0x75, 0x74,
+	0x65, 0x76, 0x33, 0xba, 0x80, 0xc8, 0xd1, 0x06, 0x02, 0x10, 0x02, 0x62, 0x06, 0x70, 0x72, 0x6f,
+	0x74, 0x6f, 0x33,
 }
 
 var (
@@ -477,32 +540,33 @@ func file_envoy_config_route_v3_route_proto_rawDescGZIP() []byte {
 	return file_envoy_config_route_v3_route_proto_rawDescData
 }
 
-var file_envoy_config_route_v3_route_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_envoy_config_route_v3_route_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_envoy_config_route_v3_route_proto_goTypes = []interface{}{
-	(*RouteConfiguration)(nil),              // 0: envoy.config.route.v3.RouteConfiguration
-	(*Vhds)(nil),                            // 1: envoy.config.route.v3.Vhds
-	nil,                                     // 2: envoy.config.route.v3.RouteConfiguration.TypedPerFilterConfigEntry
-	(*VirtualHost)(nil),                     // 3: envoy.config.route.v3.VirtualHost
-	(*v3.HeaderValueOption)(nil),            // 4: envoy.config.core.v3.HeaderValueOption
-	(*wrapperspb.BoolValue)(nil),            // 5: google.protobuf.BoolValue
-	(*wrapperspb.UInt32Value)(nil),          // 6: google.protobuf.UInt32Value
-	(*ClusterSpecifierPlugin)(nil),          // 7: envoy.config.route.v3.ClusterSpecifierPlugin
-	(*RouteAction_RequestMirrorPolicy)(nil), // 8: envoy.config.route.v3.RouteAction.RequestMirrorPolicy
-	(*v3.ConfigSource)(nil),                 // 9: envoy.config.core.v3.ConfigSource
-	(*anypb.Any)(nil),                       // 10: google.protobuf.Any
+	(*RouteConfiguration)(nil),                  // 0: envoy.config.route.v3.RouteConfiguration
+	(*Vhds)(nil),                                // 1: envoy.config.route.v3.Vhds
+	(*ClusterFallbackConfig_ClusterConfig)(nil), // 2: envoy.config.route.v3.ClusterFallbackConfig_ClusterConfig
+	nil,                                     // 3: envoy.config.route.v3.RouteConfiguration.TypedPerFilterConfigEntry
+	(*VirtualHost)(nil),                     // 4: envoy.config.route.v3.VirtualHost
+	(*v3.HeaderValueOption)(nil),            // 5: envoy.config.core.v3.HeaderValueOption
+	(*wrapperspb.BoolValue)(nil),            // 6: google.protobuf.BoolValue
+	(*wrapperspb.UInt32Value)(nil),          // 7: google.protobuf.UInt32Value
+	(*ClusterSpecifierPlugin)(nil),          // 8: envoy.config.route.v3.ClusterSpecifierPlugin
+	(*RouteAction_RequestMirrorPolicy)(nil), // 9: envoy.config.route.v3.RouteAction.RequestMirrorPolicy
+	(*v3.ConfigSource)(nil),                 // 10: envoy.config.core.v3.ConfigSource
+	(*anypb.Any)(nil),                       // 11: google.protobuf.Any
 }
 var file_envoy_config_route_v3_route_proto_depIdxs = []int32{
-	3,  // 0: envoy.config.route.v3.RouteConfiguration.virtual_hosts:type_name -> envoy.config.route.v3.VirtualHost
+	4,  // 0: envoy.config.route.v3.RouteConfiguration.virtual_hosts:type_name -> envoy.config.route.v3.VirtualHost
 	1,  // 1: envoy.config.route.v3.RouteConfiguration.vhds:type_name -> envoy.config.route.v3.Vhds
-	4,  // 2: envoy.config.route.v3.RouteConfiguration.response_headers_to_add:type_name -> envoy.config.core.v3.HeaderValueOption
-	4,  // 3: envoy.config.route.v3.RouteConfiguration.request_headers_to_add:type_name -> envoy.config.core.v3.HeaderValueOption
-	5,  // 4: envoy.config.route.v3.RouteConfiguration.validate_clusters:type_name -> google.protobuf.BoolValue
-	6,  // 5: envoy.config.route.v3.RouteConfiguration.max_direct_response_body_size_bytes:type_name -> google.protobuf.UInt32Value
-	7,  // 6: envoy.config.route.v3.RouteConfiguration.cluster_specifier_plugins:type_name -> envoy.config.route.v3.ClusterSpecifierPlugin
-	8,  // 7: envoy.config.route.v3.RouteConfiguration.request_mirror_policies:type_name -> envoy.config.route.v3.RouteAction.RequestMirrorPolicy
-	2,  // 8: envoy.config.route.v3.RouteConfiguration.typed_per_filter_config:type_name -> envoy.config.route.v3.RouteConfiguration.TypedPerFilterConfigEntry
-	9,  // 9: envoy.config.route.v3.Vhds.config_source:type_name -> envoy.config.core.v3.ConfigSource
-	10, // 10: envoy.config.route.v3.RouteConfiguration.TypedPerFilterConfigEntry.value:type_name -> google.protobuf.Any
+	5,  // 2: envoy.config.route.v3.RouteConfiguration.response_headers_to_add:type_name -> envoy.config.core.v3.HeaderValueOption
+	5,  // 3: envoy.config.route.v3.RouteConfiguration.request_headers_to_add:type_name -> envoy.config.core.v3.HeaderValueOption
+	6,  // 4: envoy.config.route.v3.RouteConfiguration.validate_clusters:type_name -> google.protobuf.BoolValue
+	7,  // 5: envoy.config.route.v3.RouteConfiguration.max_direct_response_body_size_bytes:type_name -> google.protobuf.UInt32Value
+	8,  // 6: envoy.config.route.v3.RouteConfiguration.cluster_specifier_plugins:type_name -> envoy.config.route.v3.ClusterSpecifierPlugin
+	9,  // 7: envoy.config.route.v3.RouteConfiguration.request_mirror_policies:type_name -> envoy.config.route.v3.RouteAction.RequestMirrorPolicy
+	3,  // 8: envoy.config.route.v3.RouteConfiguration.typed_per_filter_config:type_name -> envoy.config.route.v3.RouteConfiguration.TypedPerFilterConfigEntry
+	10, // 9: envoy.config.route.v3.Vhds.config_source:type_name -> envoy.config.core.v3.ConfigSource
+	11, // 10: envoy.config.route.v3.RouteConfiguration.TypedPerFilterConfigEntry.value:type_name -> google.protobuf.Any
 	11, // [11:11] is the sub-list for method output_type
 	11, // [11:11] is the sub-list for method input_type
 	11, // [11:11] is the sub-list for extension type_name
@@ -541,6 +605,18 @@ func file_envoy_config_route_v3_route_proto_init() {
 				return nil
 			}
 		}
+		file_envoy_config_route_v3_route_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ClusterFallbackConfig_ClusterConfig); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -548,7 +624,7 @@ func file_envoy_config_route_v3_route_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_envoy_config_route_v3_route_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

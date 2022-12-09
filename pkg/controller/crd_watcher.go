@@ -41,6 +41,10 @@ import (
 	"sync"
 )
 
+const (
+	EXTENSION_ROUTE_FALL_BACK = "envoy.router.cluster_specifier_plugin.cluster_fallback"
+)
+
 // CRDWatcher watches a specific kind of CRD.
 type CRDWatcher struct {
 	kind model.SubscribeKind
@@ -430,7 +434,7 @@ func buildClusterSpecifierPlugin(isSupport bool, config *route.ClusterFallbackCo
 
 	return &v31.ClusterSpecifierPlugin{
 		Extension: &corev3.TypedExtensionConfig{
-			Name:        "envoy.router.cluster_specifier_plugin.cluster_fallback",
+			Name:        EXTENSION_ROUTE_FALL_BACK,
 			TypedConfig: util.MessageToAny(config),
 		},
 	}
@@ -444,13 +448,34 @@ func buildParamMatchers(matches []*crdv1beta1.HTTPMatchRequest) []*v31.QueryPara
 	var queryParamMatchers []*v31.QueryParameterMatcher
 	for _, match := range matches {
 		for _, matcher := range match.QueryParams {
-			queryParamMatchers = append(queryParamMatchers, &v31.QueryParameterMatcher{
-				QueryParameterMatchSpecifier: &v31.QueryParameterMatcher_StringMatch{
+			queryMatcher := &v31.QueryParameterMatcher{}
+			if matcher.GetRegex() != "" {
+				queryMatcher.QueryParameterMatchSpecifier = &v31.QueryParameterMatcher_StringMatch{
 					StringMatch: &v32.StringMatcher{
-						MatchPattern: &v32.StringMatcher_Exact{Exact: matcher.GetExact()},
-					},
-				},
-			})
+						MatchPattern: &v32.StringMatcher_SafeRegex{
+							SafeRegex: &v32.RegexMatcher{
+								Regex: matcher.GetRegex(),
+							},
+						},
+					}}
+			}
+			if matcher.GetPrefix() != "" {
+				queryMatcher.QueryParameterMatchSpecifier = &v31.QueryParameterMatcher_StringMatch{
+					StringMatch: &v32.StringMatcher{
+						MatchPattern: &v32.StringMatcher_Prefix{
+							Prefix: matcher.GetPrefix(),
+						},
+					}}
+			}
+			if matcher.GetExact() != "" {
+				queryMatcher.QueryParameterMatchSpecifier = &v31.QueryParameterMatcher_StringMatch{
+					StringMatch: &v32.StringMatcher{
+						MatchPattern: &v32.StringMatcher_Exact{
+							Exact: matcher.GetExact(),
+						},
+					}}
+			}
+			queryParamMatchers = append(queryParamMatchers)
 		}
 	}
 	return queryParamMatchers
@@ -460,10 +485,19 @@ func buildHeaderMatchers(matches []*crdv1beta1.HTTPMatchRequest) []*v31.HeaderMa
 	var headerMatchers []*v31.HeaderMatcher
 	for _, match := range matches {
 		for key, matcher := range match.Headers {
-			headerMatchers = append(headerMatchers, &v31.HeaderMatcher{
-				HeaderMatchSpecifier: &v31.HeaderMatcher_ExactMatch{ExactMatch: matcher.GetExact()},
-				Name:                 key,
-			})
+			headerMatcher := &v31.HeaderMatcher{
+				Name: key,
+			}
+			if matcher.GetRegex() != "" {
+				headerMatcher.HeaderMatchSpecifier = &v31.HeaderMatcher_SafeRegexMatch{SafeRegexMatch: &v32.RegexMatcher{Regex: matcher.GetRegex()}}
+			}
+			if matcher.GetPrefix() != "" {
+				headerMatcher.HeaderMatchSpecifier = &v31.HeaderMatcher_PrefixMatch{PrefixMatch: matcher.GetPrefix()}
+			}
+			if matcher.GetExact() != "" {
+				headerMatcher.HeaderMatchSpecifier = &v31.HeaderMatcher_ExactMatch{ExactMatch: matcher.GetExact()}
+			}
+			headerMatchers = append(headerMatchers)
 		}
 	}
 	return headerMatchers

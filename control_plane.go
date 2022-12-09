@@ -136,7 +136,7 @@ func (c *ControlPlane) handleSubscribeRequest(clientIdentifier model.ClientIdent
 			continue
 		}
 		_ = c.server.ConnectionManager().Add(request.Target.Namespace, request.Target.App, kind, transport.NewConnection(clientIdentifier, stream))
-		// watcher缓存不空就发送
+		// send if the watcher cache is not empty
 		rules, version := crdWatcher.GetRules(model.NamespacedApp{
 			Namespace: request.Target.Namespace,
 			App:       request.Target.App,

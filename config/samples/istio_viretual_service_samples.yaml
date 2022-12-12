@@ -1,5 +1,5 @@
-apiVersion: networking.istio.io/v1beta1
-kind: VirtualService
+apiVersion: traffic.opensergo.io/v1alpha1
+kind: TrafficRouter
 metadata:
   name: service-provider
   namespace: default

@@ -9,19 +9,19 @@ metadata:
     chart: istio
     heritage: Tiller
     release: istio
-  name: virtualservices.networking.istio.io
+  name: trafficrouters.traffic.opensergo.io
 spec:
-  group: networking.istio.io
+  group: traffic.opensergo.io
   names:
     categories:
       - istio-io
       - networking-istio-io
-    kind: VirtualService
-    listKind: VirtualServiceList
-    plural: virtualservices
+    kind: TrafficRouter
+    listKind: TrafficRouterList
+    plural: trafficrouters
     shortNames:
       - vs
-    singular: virtualservice
+    singular: trafficrouter
   scope: Namespaced
   versions:
     - additionalPrinterColumns:
@@ -41,13 +41,12 @@ spec:
           jsonPath: .metadata.creationTimestamp
           name: Age
           type: date
-      name: v1beta1
+      name: v1alpha1
       schema:
         openAPIV3Schema:
           properties:
             spec:
-              description: 'Configuration affecting label/content routing, sni routing,
-              etc. See more details at: https://istio.io/docs/reference/config/networking/virtual-service.html'
+              description: Configuration affecting traffic routing.
               properties:
                 exportTo:
                   description: A list of namespaces to which this virtual service is

@@ -497,7 +497,7 @@ func buildHeaderMatchers(matches []*crdv1beta1.HTTPMatchRequest) []*v31.HeaderMa
 			if matcher.GetExact() != "" {
 				headerMatcher.HeaderMatchSpecifier = &v31.HeaderMatcher_ExactMatch{ExactMatch: matcher.GetExact()}
 			}
-			headerMatchers = append(headerMatchers)
+			headerMatchers = append(headerMatchers, headerMatcher)
 		}
 	}
 	return headerMatchers

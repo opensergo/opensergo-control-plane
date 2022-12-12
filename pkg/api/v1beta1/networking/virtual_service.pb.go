@@ -4285,7 +4285,7 @@ var file_networking_v1beta1_virtual_service_proto_enumTypes = make([]protoimpl.E
 var file_networking_v1beta1_virtual_service_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
 var file_networking_v1beta1_virtual_service_proto_goTypes = []interface{}{
 	(HTTPRedirect_RedirectPortSelection)(0), // 0: istio.networking.v1beta1.HTTPRedirect.RedirectPortSelection
-	(*VirtualServiceSpec)(nil),                  // 1: istio.networking.v1beta1.VirtualServiceSpec
+	(*VirtualServiceSpec)(nil),              // 1: istio.networking.v1beta1.VirtualServiceSpec
 	(*Destination)(nil),                     // 2: istio.networking.v1beta1.Destination
 	(*HTTPRoute)(nil),                       // 3: istio.networking.v1beta1.HTTPRoute
 	(*Delegate)(nil),                        // 4: istio.networking.v1beta1.Delegate

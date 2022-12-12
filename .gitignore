@@ -26,6 +26,12 @@
 .idea/**/gradle.xml
 .idea/**/libraries
 
+.idea/.gitignore
+.idea/modules.xml
+.idea/opensergo-control-plane.iml
+.idea/protoeditor.xml
+.idea/vcs.xml
+
 # Gradle and Maven with auto-import
 # When using Gradle or Maven with auto-import, you should exclude module files,
 # since they will be recreated, and may cause churn.  Uncomment if using

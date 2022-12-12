@@ -17,8 +17,8 @@ package controller
 import (
 	"context"
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
-	v31 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
-	v32 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
+	routev3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	matcherv3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"github.com/go-logr/logr"
 	"github.com/golang/protobuf/ptypes/wrappers"
 	crdv1alpha1 "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1"
@@ -325,17 +325,17 @@ func (r *CRDWatcher) translateCrdToProto(object client.Object) (*anypb.Any, erro
 		}
 	case VirtualServiceKind:
 		cls := object.(*crdv1beta1.VirtualService)
-		virtualHost := &v31.VirtualHost{
+		virtualHost := &routev3.VirtualHost{
 			Name:   cls.Name,
-			Routes: []*v31.Route{},
+			Routes: []*routev3.Route{},
 		}
 		virtualHost.Routes = append(virtualHost.Routes, buildHTTPRoutes(cls)...)
 		for _, domain := range cls.Spec.Hosts {
 			virtualHost.Domains = append(virtualHost.Domains, buildFQDN(domain, cls.Namespace))
 		}
-		rule = &v31.RouteConfiguration{
+		rule = &routev3.RouteConfiguration{
 			Name:         cls.Name,
-			VirtualHosts: []*v31.VirtualHost{virtualHost},
+			VirtualHosts: []*routev3.VirtualHost{virtualHost},
 		}
 	default:
 		return nil, nil
@@ -349,15 +349,15 @@ func (r *CRDWatcher) translateCrdToProto(object client.Object) (*anypb.Any, erro
 
 }
 
-func buildHTTPRoutes(vs *crdv1beta1.VirtualService) []*v31.Route {
-	var routes []*v31.Route
+func buildHTTPRoutes(vs *crdv1beta1.VirtualService) []*routev3.Route {
+	var routes []*routev3.Route
 	for _, httpRoute := range vs.Spec.Http {
-		r := &v31.Route{
-			Match: &v31.RouteMatch{
+		r := &routev3.Route{
+			Match: &routev3.RouteMatch{
 				Headers:         buildHeaderMatchers(httpRoute.Match),
 				QueryParameters: buildParamMatchers(httpRoute.Match),
 			},
-			Action: &v31.Route_Route{
+			Action: &routev3.Route_Route{
 				Route: buildRouteAction(httpRoute, vs),
 			},
 		}
@@ -366,34 +366,34 @@ func buildHTTPRoutes(vs *crdv1beta1.VirtualService) []*v31.Route {
 	return routes
 }
 
-func buildUnweightedRouteAction(destination *crdv1beta1.HTTPRouteDestination, vs *crdv1beta1.VirtualService) *v31.RouteAction {
+func buildUnweightedRouteAction(destination *crdv1beta1.HTTPRouteDestination, vs *crdv1beta1.VirtualService) *routev3.RouteAction {
 	if destination.Destination.Fallback != nil {
-		return &v31.RouteAction{
-			ClusterSpecifier: &v31.RouteAction_InlineClusterSpecifierPlugin{
+		return &routev3.RouteAction{
+			ClusterSpecifier: &routev3.RouteAction_InlineClusterSpecifierPlugin{
 				InlineClusterSpecifierPlugin: buildClusterSpecifierPlugin(true, buildClusterFallbackConfig(buildRouteActionCluster(destination.Destination.Host, vs.Namespace, destination.Destination.Subset), buildRouterFallbackActionCluster(destination.Destination.Fallback, vs.Namespace))),
 			},
 		}
 	} else {
-		return &v31.RouteAction{
-			ClusterSpecifier: &v31.RouteAction_Cluster{Cluster: buildRouteActionCluster(destination.Destination.Host, vs.Namespace, destination.Destination.Subset)},
+		return &routev3.RouteAction{
+			ClusterSpecifier: &routev3.RouteAction_Cluster{Cluster: buildRouteActionCluster(destination.Destination.Host, vs.Namespace, destination.Destination.Subset)},
 		}
 	}
 }
 
-func buildWeightedRouteAction(destinations []*crdv1beta1.HTTPRouteDestination, vs *crdv1beta1.VirtualService) *v31.RouteAction {
-	return &v31.RouteAction{
-		ClusterSpecifier: &v31.RouteAction_WeightedClusters{
-			WeightedClusters: &v31.WeightedCluster{
+func buildWeightedRouteAction(destinations []*crdv1beta1.HTTPRouteDestination, vs *crdv1beta1.VirtualService) *routev3.RouteAction {
+	return &routev3.RouteAction{
+		ClusterSpecifier: &routev3.RouteAction_WeightedClusters{
+			WeightedClusters: &routev3.WeightedCluster{
 				Clusters: buildWeightedClusters(vs.Namespace, destinations),
 			},
 		},
 	}
 }
 
-func buildWeightedClusters(namespace string, destinations []*crdv1beta1.HTTPRouteDestination) []*v31.WeightedCluster_ClusterWeight {
-	var weightedClusters []*v31.WeightedCluster_ClusterWeight
+func buildWeightedClusters(namespace string, destinations []*crdv1beta1.HTTPRouteDestination) []*routev3.WeightedCluster_ClusterWeight {
+	var weightedClusters []*routev3.WeightedCluster_ClusterWeight
 	for _, destination := range destinations {
-		w := &v31.WeightedCluster_ClusterWeight{
+		w := &routev3.WeightedCluster_ClusterWeight{
 			Name:   buildRouteActionCluster(destination.Destination.Host, namespace, destination.Destination.Subset),
 			Weight: &wrappers.UInt32Value{Value: uint32(destination.Weight)},
 		}
@@ -402,7 +402,7 @@ func buildWeightedClusters(namespace string, destinations []*crdv1beta1.HTTPRout
 	return weightedClusters
 }
 
-func buildRouteAction(httpRoute *crdv1beta1.HTTPRoute, vs *crdv1beta1.VirtualService) *v31.RouteAction {
+func buildRouteAction(httpRoute *crdv1beta1.HTTPRoute, vs *crdv1beta1.VirtualService) *routev3.RouteAction {
 	if len(httpRoute.Route) == 1 {
 		// unweighted
 		return buildUnweightedRouteAction(httpRoute.Route[0], vs)
@@ -427,12 +427,12 @@ func buildClusterFallbackConfig(cluster string, fallbackCluster string) *route.C
 	}
 }
 
-func buildClusterSpecifierPlugin(isSupport bool, config *route.ClusterFallbackConfig_ClusterConfig) *v31.ClusterSpecifierPlugin {
+func buildClusterSpecifierPlugin(isSupport bool, config *route.ClusterFallbackConfig_ClusterConfig) *routev3.ClusterSpecifierPlugin {
 	if !isSupport || config == nil {
 		return nil
 	}
 
-	return &v31.ClusterSpecifierPlugin{
+	return &routev3.ClusterSpecifierPlugin{
 		Extension: &corev3.TypedExtensionConfig{
 			Name:        EXTENSION_ROUTE_FALL_BACK,
 			TypedConfig: util.MessageToAny(config),
@@ -444,33 +444,33 @@ func buildRouteActionCluster(serviceName, namespace, version string) string {
 	return "outbound|" + "|" + version + "|" + buildFQDN(serviceName, namespace)
 }
 
-func buildParamMatchers(matches []*crdv1beta1.HTTPMatchRequest) []*v31.QueryParameterMatcher {
-	var queryParamMatchers []*v31.QueryParameterMatcher
+func buildParamMatchers(matches []*crdv1beta1.HTTPMatchRequest) []*routev3.QueryParameterMatcher {
+	var queryParamMatchers []*routev3.QueryParameterMatcher
 	for _, match := range matches {
 		for _, matcher := range match.QueryParams {
-			queryMatcher := &v31.QueryParameterMatcher{}
+			queryMatcher := &routev3.QueryParameterMatcher{}
 			if matcher.GetRegex() != "" {
-				queryMatcher.QueryParameterMatchSpecifier = &v31.QueryParameterMatcher_StringMatch{
-					StringMatch: &v32.StringMatcher{
-						MatchPattern: &v32.StringMatcher_SafeRegex{
-							SafeRegex: &v32.RegexMatcher{
+				queryMatcher.QueryParameterMatchSpecifier = &routev3.QueryParameterMatcher_StringMatch{
+					StringMatch: &matcherv3.StringMatcher{
+						MatchPattern: &matcherv3.StringMatcher_SafeRegex{
+							SafeRegex: &matcherv3.RegexMatcher{
 								Regex: matcher.GetRegex(),
 							},
 						},
 					}}
 			}
 			if matcher.GetPrefix() != "" {
-				queryMatcher.QueryParameterMatchSpecifier = &v31.QueryParameterMatcher_StringMatch{
-					StringMatch: &v32.StringMatcher{
-						MatchPattern: &v32.StringMatcher_Prefix{
+				queryMatcher.QueryParameterMatchSpecifier = &routev3.QueryParameterMatcher_StringMatch{
+					StringMatch: &matcherv3.StringMatcher{
+						MatchPattern: &matcherv3.StringMatcher_Prefix{
 							Prefix: matcher.GetPrefix(),
 						},
 					}}
 			}
 			if matcher.GetExact() != "" {
-				queryMatcher.QueryParameterMatchSpecifier = &v31.QueryParameterMatcher_StringMatch{
-					StringMatch: &v32.StringMatcher{
-						MatchPattern: &v32.StringMatcher_Exact{
+				queryMatcher.QueryParameterMatchSpecifier = &routev3.QueryParameterMatcher_StringMatch{
+					StringMatch: &matcherv3.StringMatcher{
+						MatchPattern: &matcherv3.StringMatcher_Exact{
 							Exact: matcher.GetExact(),
 						},
 					}}
@@ -481,21 +481,21 @@ func buildParamMatchers(matches []*crdv1beta1.HTTPMatchRequest) []*v31.QueryPara
 	return queryParamMatchers
 }
 
-func buildHeaderMatchers(matches []*crdv1beta1.HTTPMatchRequest) []*v31.HeaderMatcher {
-	var headerMatchers []*v31.HeaderMatcher
+func buildHeaderMatchers(matches []*crdv1beta1.HTTPMatchRequest) []*routev3.HeaderMatcher {
+	var headerMatchers []*routev3.HeaderMatcher
 	for _, match := range matches {
 		for key, matcher := range match.Headers {
-			headerMatcher := &v31.HeaderMatcher{
+			headerMatcher := &routev3.HeaderMatcher{
 				Name: key,
 			}
 			if matcher.GetRegex() != "" {
-				headerMatcher.HeaderMatchSpecifier = &v31.HeaderMatcher_SafeRegexMatch{SafeRegexMatch: &v32.RegexMatcher{Regex: matcher.GetRegex()}}
+				headerMatcher.HeaderMatchSpecifier = &routev3.HeaderMatcher_SafeRegexMatch{SafeRegexMatch: &matcherv3.RegexMatcher{Regex: matcher.GetRegex()}}
 			}
 			if matcher.GetPrefix() != "" {
-				headerMatcher.HeaderMatchSpecifier = &v31.HeaderMatcher_PrefixMatch{PrefixMatch: matcher.GetPrefix()}
+				headerMatcher.HeaderMatchSpecifier = &routev3.HeaderMatcher_PrefixMatch{PrefixMatch: matcher.GetPrefix()}
 			}
 			if matcher.GetExact() != "" {
-				headerMatcher.HeaderMatchSpecifier = &v31.HeaderMatcher_ExactMatch{ExactMatch: matcher.GetExact()}
+				headerMatcher.HeaderMatchSpecifier = &routev3.HeaderMatcher_ExactMatch{ExactMatch: matcher.GetExact()}
 			}
 			headerMatchers = append(headerMatchers, headerMatcher)
 		}

@@ -475,7 +475,7 @@ func buildParamMatchers(matches []*crdv1beta1.HTTPMatchRequest) []*v31.QueryPara
 						},
 					}}
 			}
-			queryParamMatchers = append(queryParamMatchers)
+			queryParamMatchers = append(queryParamMatchers, queryMatcher)
 		}
 	}
 	return queryParamMatchers

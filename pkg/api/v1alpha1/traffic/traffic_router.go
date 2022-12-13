@@ -16,7 +16,7 @@ type TrafficRouter struct {
 
 // HttpRequestMatchRuleList contains a list of HttpRequestMatchRule.
 // +kubebuilder:object:root=true
-type VirtualServiceList struct {
+type TrafficRouterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []TrafficRouter `json:"items"`
@@ -29,5 +29,5 @@ type VirtualServiceStatus struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&TrafficRouter{}, &VirtualServiceList{})
+	SchemeBuilder.Register(&TrafficRouter{}, &TrafficRouterList{})
 }

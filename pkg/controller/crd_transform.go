@@ -5,13 +5,13 @@ import (
 	routev3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	matcherv3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"github.com/golang/protobuf/ptypes/wrappers"
-	crdv1beta1 "github.com/opensergo/opensergo-control-plane/pkg/api/v1beta1/networking"
+	crdv1alpha1traffic "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/traffic"
 	route "github.com/opensergo/opensergo-control-plane/pkg/proto/router/v1"
 	"github.com/opensergo/opensergo-control-plane/pkg/util"
 )
 
 // BuildRouteConfiguration for Istio RouteConfiguration
-func BuildRouteConfiguration(cls *crdv1beta1.VirtualService) *routev3.RouteConfiguration {
+func BuildRouteConfiguration(cls *crdv1alpha1traffic.TrafficRouter) *routev3.RouteConfiguration {
 	virtualHost := &routev3.VirtualHost{
 		Name:   cls.Name,
 		Routes: []*routev3.Route{},
@@ -27,16 +27,16 @@ func BuildRouteConfiguration(cls *crdv1beta1.VirtualService) *routev3.RouteConfi
 	return rule
 }
 
-func buildHTTPRoutes(vs *crdv1beta1.VirtualService) []*routev3.Route {
+func buildHTTPRoutes(tr *crdv1alpha1traffic.TrafficRouter) []*routev3.Route {
 	var routes []*routev3.Route
-	for _, httpRoute := range vs.Spec.Http {
+	for _, httpRoute := range tr.Spec.Http {
 		r := &routev3.Route{
 			Match: &routev3.RouteMatch{
 				Headers:         buildHeaderMatchers(httpRoute.Match),
 				QueryParameters: buildParamMatchers(httpRoute.Match),
 			},
 			Action: &routev3.Route_Route{
-				Route: buildRouteAction(httpRoute, vs),
+				Route: buildRouteAction(httpRoute, tr),
 			},
 		}
 		routes = append(routes, r)
@@ -44,7 +44,7 @@ func buildHTTPRoutes(vs *crdv1beta1.VirtualService) []*routev3.Route {
 	return routes
 }
 
-func buildUnweightedRouteAction(destination *crdv1beta1.HTTPRouteDestination, vs *crdv1beta1.VirtualService) *routev3.RouteAction {
+func buildUnweightedRouteAction(destination *crdv1alpha1traffic.HTTPRouteDestination, vs *crdv1alpha1traffic.TrafficRouter) *routev3.RouteAction {
 	if destination.Destination.Fallback != nil {
 		return &routev3.RouteAction{
 			ClusterSpecifier: &routev3.RouteAction_InlineClusterSpecifierPlugin{
@@ -58,7 +58,7 @@ func buildUnweightedRouteAction(destination *crdv1beta1.HTTPRouteDestination, vs
 	}
 }
 
-func buildWeightedRouteAction(destinations []*crdv1beta1.HTTPRouteDestination, vs *crdv1beta1.VirtualService) *routev3.RouteAction {
+func buildWeightedRouteAction(destinations []*crdv1alpha1traffic.HTTPRouteDestination, vs *crdv1alpha1traffic.TrafficRouter) *routev3.RouteAction {
 	return &routev3.RouteAction{
 		ClusterSpecifier: &routev3.RouteAction_WeightedClusters{
 			WeightedClusters: &routev3.WeightedCluster{
@@ -68,7 +68,7 @@ func buildWeightedRouteAction(destinations []*crdv1beta1.HTTPRouteDestination, v
 	}
 }
 
-func buildWeightedClusters(namespace string, destinations []*crdv1beta1.HTTPRouteDestination) []*routev3.WeightedCluster_ClusterWeight {
+func buildWeightedClusters(namespace string, destinations []*crdv1alpha1traffic.HTTPRouteDestination) []*routev3.WeightedCluster_ClusterWeight {
 	var weightedClusters []*routev3.WeightedCluster_ClusterWeight
 	for _, destination := range destinations {
 		w := &routev3.WeightedCluster_ClusterWeight{
@@ -80,7 +80,7 @@ func buildWeightedClusters(namespace string, destinations []*crdv1beta1.HTTPRout
 	return weightedClusters
 }
 
-func buildRouteAction(httpRoute *crdv1beta1.HTTPRoute, vs *crdv1beta1.VirtualService) *routev3.RouteAction {
+func buildRouteAction(httpRoute *crdv1alpha1traffic.HTTPRoute, vs *crdv1alpha1traffic.TrafficRouter) *routev3.RouteAction {
 	if len(httpRoute.Route) == 1 {
 		// unweighted
 		return buildUnweightedRouteAction(httpRoute.Route[0], vs)
@@ -90,7 +90,7 @@ func buildRouteAction(httpRoute *crdv1beta1.HTTPRoute, vs *crdv1beta1.VirtualSer
 	}
 }
 
-func buildRouterFallbackActionCluster(fallback *crdv1beta1.Fallback, namespace string) string {
+func buildRouterFallbackActionCluster(fallback *crdv1alpha1traffic.Fallback, namespace string) string {
 	if fallback == nil {
 		return ""
 	}
@@ -122,7 +122,7 @@ func buildRouteActionCluster(serviceName, namespace, version string) string {
 	return "outbound|" + "|" + version + "|" + buildFQDN(serviceName, namespace)
 }
 
-func buildParamMatchers(matches []*crdv1beta1.HTTPMatchRequest) []*routev3.QueryParameterMatcher {
+func buildParamMatchers(matches []*crdv1alpha1traffic.HTTPMatchRequest) []*routev3.QueryParameterMatcher {
 	var queryParamMatchers []*routev3.QueryParameterMatcher
 	for _, match := range matches {
 		for _, matcher := range match.QueryParams {
@@ -159,7 +159,7 @@ func buildParamMatchers(matches []*crdv1beta1.HTTPMatchRequest) []*routev3.Query
 	return queryParamMatchers
 }
 
-func buildHeaderMatchers(matches []*crdv1beta1.HTTPMatchRequest) []*routev3.HeaderMatcher {
+func buildHeaderMatchers(matches []*crdv1alpha1traffic.HTTPMatchRequest) []*routev3.HeaderMatcher {
 	var headerMatchers []*routev3.HeaderMatcher
 	for _, match := range matches {
 		for key, matcher := range match.Headers {

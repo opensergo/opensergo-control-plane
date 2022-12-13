@@ -25,7 +25,7 @@ import (
 
 var (
 	// GroupVersion is group version used to register these objects
-	GroupVersion = schema.GroupVersion{Group: "networking.istio.io", Version: "v1beta1"}
+	GroupVersion = schema.GroupVersion{Group: "traffic.opensergo.io", Version: "v1alpha1"}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}

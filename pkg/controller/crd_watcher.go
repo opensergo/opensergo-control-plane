@@ -18,7 +18,7 @@ import (
 	"context"
 	"github.com/go-logr/logr"
 	crdv1alpha1 "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1"
-	crdv1beta1 "github.com/opensergo/opensergo-control-plane/pkg/api/v1beta1/networking"
+	crdv1alpha1traffic "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/traffic"
 	"github.com/opensergo/opensergo-control-plane/pkg/model"
 	pb "github.com/opensergo/opensergo-control-plane/pkg/proto/fault_tolerance/v1"
 	trpb "github.com/opensergo/opensergo-control-plane/pkg/proto/transport/v1"
@@ -318,8 +318,8 @@ func (r *CRDWatcher) translateCrdToProto(object client.Object) (*anypb.Any, erro
 			LimitMode:      util.Str2LimitNode(cls.Spec.LimitMode),
 			MaxConcurrency: cls.Spec.MaxConcurrencyThreshold,
 		}
-	case VirtualServiceKind:
-		cls := object.(*crdv1beta1.VirtualService)
+	case TrafficRouterKind:
+		cls := object.(*crdv1alpha1traffic.TrafficRouter)
 		rule = BuildRouteConfiguration(cls)
 	default:
 		return nil, nil

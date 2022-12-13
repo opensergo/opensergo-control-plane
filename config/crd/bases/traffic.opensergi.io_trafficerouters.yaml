@@ -20,7 +20,7 @@ spec:
     listKind: TrafficRouterList
     plural: trafficrouters
     shortNames:
-      - vs
+      - tr
     singular: trafficrouter
   scope: Namespaced
   versions:

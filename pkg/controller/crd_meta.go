@@ -52,7 +52,7 @@ const (
 	ThrottlingStrategyKind       = "fault-tolerance.opensergo.io/v1alpha1/ThrottlingStrategy"
 	ConcurrencyLimitStrategyKind = "fault-tolerance.opensergo.io/v1alpha1/ConcurrencyLimitStrategy"
 	CircuitBreakerStrategyKind   = "fault-tolerance.opensergo.io/v1alpha1/CircuitBreakerStrategy"
-	TrafficRouterKind            = "trafficrouters.traffic.opensergo.io/v1alpha1/TrafficRouter"
+	TrafficRouterKind            = "traffic.opensergo.io/v1alpha1/TrafficRouter"
 )
 
 var (

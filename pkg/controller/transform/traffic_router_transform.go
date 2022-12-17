@@ -1,4 +1,4 @@
-package controller
+package transform
 
 import (
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -8,6 +8,19 @@ import (
 	crdv1alpha1traffic "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/traffic"
 	route "github.com/opensergo/opensergo-control-plane/pkg/proto/router/v1"
 	"github.com/opensergo/opensergo-control-plane/pkg/util"
+)
+
+const (
+	EXTENSION_ROUTE_FALL_BACK = "envoy.router.cluster_specifier_plugin.cluster_fallback"
+	CRD_API_VERSION           = "apiVersion"
+	CRD_KIND                  = "kind"
+	CRD_METADATA              = "metadata"
+	CRD_SPEC                  = "spec"
+
+	VIRTUAL_SERVICE_KIND       = "VirtualService"
+	VIRTUAL_SERVICE_V1_ALPHA3  = "networking.istio.io/v1alpha3"
+	VIRTUAL_SERVICE_HOST       = "hosts"
+	VIRTUAL_SERVICE_HTTP_MATCH = "http"
 )
 
 // BuildRouteConfiguration for Istio RouteConfiguration
@@ -25,6 +38,19 @@ func BuildRouteConfiguration(cls *crdv1alpha1traffic.TrafficRouter) *routev3.Rou
 		VirtualHosts: []*routev3.VirtualHost{virtualHost},
 	}
 	return rule
+}
+
+func BuildUnstructuredVirtualService(cls *crdv1alpha1traffic.TrafficRouter) map[string]interface{} {
+	cls.ObjectMeta.ResourceVersion = ""
+	return map[string]interface{}{
+		CRD_API_VERSION: VIRTUAL_SERVICE_V1_ALPHA3,
+		CRD_KIND:        VIRTUAL_SERVICE_KIND,
+		CRD_METADATA:    cls.ObjectMeta,
+		CRD_SPEC: map[string]interface{}{
+			VIRTUAL_SERVICE_HOST:       cls.Spec.Hosts,
+			VIRTUAL_SERVICE_HTTP_MATCH: cls.Spec.Http,
+		},
+	}
 }
 
 func buildHTTPRoutes(tr *crdv1alpha1traffic.TrafficRouter) []*routev3.Route {

@@ -21,9 +21,14 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/opensergo/opensergo-control-plane/pkg/controller/env"
+
+	"github.com/opensergo/opensergo-control-plane/pkg/controller/transform"
+
 	"github.com/go-logr/logr"
 	crdv1alpha1 "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1"
 	crdv1alpha1traffic "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/traffic"
+	k8sclient "github.com/opensergo/opensergo-control-plane/pkg/client"
 	"github.com/opensergo/opensergo-control-plane/pkg/model"
 	pb "github.com/opensergo/opensergo-control-plane/pkg/proto/fault_tolerance/v1"
 	trpb "github.com/opensergo/opensergo-control-plane/pkg/proto/transport/v1"
@@ -35,10 +40,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-)
-
-const (
-	EXTENSION_ROUTE_FALL_BACK = "envoy.router.cluster_specifier_plugin.cluster_fallback"
 )
 
 // CRDWatcher watches a specific kind of CRD.
@@ -321,7 +322,16 @@ func (r *CRDWatcher) translateCrdToProto(object client.Object) (*anypb.Any, erro
 		}
 	case TrafficRouterKind:
 		cls := object.(*crdv1alpha1traffic.TrafficRouter)
-		rule = BuildRouteConfiguration(cls)
+		envStr := env.GetENV()
+		switch envStr {
+		case env.K8S_ENV:
+			rule = transform.BuildRouteConfiguration(cls)
+		case env.ISTIO_ENV:
+			_, err := k8sclient.ApplyVirtualService(context.Background(), cls.Namespace, transform.BuildUnstructuredVirtualService(cls))
+			if err != nil {
+				return nil, err
+			}
+		}
 	default:
 		return nil, nil
 	}

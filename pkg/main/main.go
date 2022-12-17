@@ -15,8 +15,10 @@
 package main
 
 import (
-	"github.com/opensergo/opensergo-control-plane"
 	"log"
+
+	"github.com/opensergo/opensergo-control-plane"
+	"github.com/opensergo/opensergo-control-plane/pkg/client"
 )
 
 func main() {
@@ -24,6 +26,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	_ = client.Init()
 	err = cp.Start()
 	if err != nil {
 		log.Fatal(err)

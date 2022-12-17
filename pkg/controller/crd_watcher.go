@@ -16,6 +16,11 @@ package controller
 
 import (
 	"context"
+	"log"
+	"net/http"
+	"strconv"
+	"sync"
+
 	"github.com/go-logr/logr"
 	crdv1alpha1 "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1"
 	crdv1alpha1traffic "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/traffic"
@@ -28,12 +33,8 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 	k8sApiError "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"log"
-	"net/http"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"strconv"
-	"sync"
 )
 
 const (

@@ -37,10 +37,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const (
-	EXTENSION_ROUTE_FALL_BACK = "envoy.router.cluster_specifier_plugin.cluster_fallback"
-)
-
 // CRDWatcher watches a specific kind of CRD.
 type CRDWatcher struct {
 	kind model.SubscribeKind

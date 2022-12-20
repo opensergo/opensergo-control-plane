@@ -50,7 +50,7 @@ type CRDWatcher struct {
 	// subscribedList consists of all subscribed target of current kind of CRD.
 	subscribedList       map[model.SubscribeTarget]bool
 	subscribedNamespaces map[string]bool
-	subscribedApps       map[string]bool
+	subscribedApps       map[model.NamespacedApp]bool
 
 	crdGenerator    func() client.Object
 	sendDataHandler model.DataEntirePushHandler
@@ -90,7 +90,7 @@ func (r *CRDWatcher) AddSubscribeTarget(target model.SubscribeTarget) error {
 
 	r.subscribedList[target] = true
 	r.subscribedNamespaces[target.Namespace] = true
-	r.subscribedApps[target.AppName] = true
+	r.subscribedApps[target.NamespacedApp()] = true
 
 	return nil
 }
@@ -109,7 +109,7 @@ func (r *CRDWatcher) HasAnySubscribedOfNamespace(namespace string) bool {
 	return exist
 }
 
-func (r *CRDWatcher) HasAnySubscribedOfApp(app string) bool {
+func (r *CRDWatcher) HasAnySubscribedOfApp(app model.NamespacedApp) bool {
 	r.updateMux.RLock()
 	defer r.updateMux.RUnlock()
 
@@ -118,25 +118,25 @@ func (r *CRDWatcher) HasAnySubscribedOfApp(app string) bool {
 }
 
 func (r *CRDWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	if r.HasAnySubscribedOfApp(req.Namespace) {
+	if !r.HasAnySubscribedOfNamespace(req.Namespace) {
 		// Ignore unmatched namespace
 		return ctrl.Result{Requeue: false, RequeueAfter: 0}, nil
 	}
-	log := r.logger.WithValues("crdNamespace", req.Namespace, "crdName", req.Name, "kind", r.kind)
+	logger := r.logger.WithValues("crdNamespace", req.Namespace, "crdName", req.Name, "kind", r.kind)
 
 	// your logic here
 	crd := r.crdGenerator()
 	if err := r.Get(ctx, req.NamespacedName, crd); err != nil {
 		k8sApiErr, ok := err.(*k8sApiError.StatusError)
 		if !ok {
-			log.Error(err, "Failed to get OpenSergo CRD")
+			logger.Error(err, "Failed to get OpenSergo CRD")
 			return ctrl.Result{
 				Requeue:      false,
 				RequeueAfter: 0,
 			}, nil
 		}
 		if k8sApiErr.Status().Code != http.StatusNotFound {
-			log.Error(err, "Failed to get OpenSergo CRD")
+			logger.Error(err, "Failed to get OpenSergo CRD")
 			return ctrl.Result{
 				Requeue:      false,
 				RequeueAfter: 0,
@@ -153,10 +153,11 @@ func (r *CRDWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		// 		 And we may also need to check for namespace change of a CRD.
 		var hasAppLabel bool
 		app, hasAppLabel = crd.GetLabels()["app"]
-		appSubscribed := r.HasAnySubscribedOfApp(app)
+		namespacedApp := model.NamespacedApp{Namespace: req.Namespace, App: app}
+		appSubscribed := r.HasAnySubscribedOfApp(namespacedApp)
 		if !hasAppLabel || !appSubscribed {
 			if _, prevContains := r.crdCache.GetByNamespacedName(req.NamespacedName); prevContains {
-				log.Info("OpenSergo CRD will be deleted because app label has been changed", "newApp", app)
+				logger.Info("OpenSergo CRD will be deleted because app label has been changed", "newApp", app)
 				crd = nil
 			} else {
 				// Ignore unmatched app label
@@ -166,19 +167,16 @@ func (r *CRDWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				}, nil
 			}
 		} else {
-			log.Info("OpenSergo CRD received", "crd", crd)
+			logger.Info("OpenSergo CRD received", "crd", crd)
 		}
-		r.crdCache.SetByNamespaceApp(model.NamespacedApp{
-			Namespace: req.Namespace,
-			App:       app,
-		}, crd)
+		r.crdCache.SetByNamespaceApp(namespacedApp, crd)
 		r.crdCache.SetByNamespacedName(req.NamespacedName, crd)
 
 	} else {
 		app, _ = r.crdCache.GetAppByNamespacedName(req.NamespacedName)
 		r.crdCache.DeleteByNamespaceApp(model.NamespacedApp{Namespace: req.Namespace, App: app}, req.Name)
 		r.crdCache.DeleteByNamespacedName(req.NamespacedName)
-		log.Info("OpenSergo CRD will be deleted")
+		logger.Info("OpenSergo CRD will be deleted")
 	}
 
 	nsa := model.NamespacedApp{
@@ -195,7 +193,7 @@ func (r *CRDWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	dataWithVersion := &trpb.DataWithVersion{Data: rules, Version: version}
 	err := r.sendDataHandler(req.Namespace, app, r.kind, dataWithVersion, status, "")
 	if err != nil {
-		log.Error(err, "Failed to send rules", "kind", r.kind)
+		logger.Error(err, "Failed to send rules", "kind", r.kind)
 	}
 	return ctrl.Result{}, nil
 }
@@ -334,7 +332,7 @@ func NewCRDWatcher(crdManager ctrl.Manager, kind model.SubscribeKind, crdGenerat
 		scheme:               crdManager.GetScheme(),
 		subscribedList:       make(map[model.SubscribeTarget]bool, 4),
 		subscribedNamespaces: make(map[string]bool),
-		subscribedApps:       make(map[string]bool),
+		subscribedApps:       make(map[model.NamespacedApp]bool),
 		crdGenerator:         crdGenerator,
 		crdCache:             NewCRDCache(kind),
 		sendDataHandler:      sendDataHandler,

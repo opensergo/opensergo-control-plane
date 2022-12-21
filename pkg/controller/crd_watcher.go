@@ -23,7 +23,7 @@ import (
 
 	"github.com/opensergo/opensergo-control-plane/pkg/controller/env"
 
-	"github.com/opensergo/opensergo-control-plane/pkg/controller/transform"
+	transform "github.com/opensergo/opensergo-control-plane/pkg/controller/transform"
 
 	"github.com/go-logr/logr"
 	crdv1alpha1 "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1"

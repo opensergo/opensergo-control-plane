@@ -1,11 +1,25 @@
-package transform
+// Copyright 2022, OpenSergo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package controller
 
 import (
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	routev3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	matcherv3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"github.com/golang/protobuf/ptypes/wrappers"
-	crdv1alpha1traffic "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/traffic"
+	"github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/traffic"
 	route "github.com/opensergo/opensergo-control-plane/pkg/proto/router/v1"
 	"github.com/opensergo/opensergo-control-plane/pkg/util"
 )
@@ -24,7 +38,7 @@ const (
 )
 
 // BuildRouteConfiguration for Istio RouteConfiguration
-func BuildRouteConfiguration(cls *crdv1alpha1traffic.TrafficRouter) *routev3.RouteConfiguration {
+func BuildRouteConfiguration(cls *traffic.TrafficRouter) *routev3.RouteConfiguration {
 	virtualHost := &routev3.VirtualHost{
 		Name:   cls.Name,
 		Routes: []*routev3.Route{},
@@ -40,7 +54,7 @@ func BuildRouteConfiguration(cls *crdv1alpha1traffic.TrafficRouter) *routev3.Rou
 	return rule
 }
 
-func BuildUnstructuredVirtualService(cls *crdv1alpha1traffic.TrafficRouter) map[string]interface{} {
+func BuildUnstructuredVirtualService(cls *traffic.TrafficRouter) map[string]interface{} {
 	cls.ObjectMeta.ResourceVersion = ""
 	return map[string]interface{}{
 		CRD_API_VERSION: VIRTUAL_SERVICE_V1_ALPHA3,
@@ -53,7 +67,7 @@ func BuildUnstructuredVirtualService(cls *crdv1alpha1traffic.TrafficRouter) map[
 	}
 }
 
-func buildHTTPRoutes(tr *crdv1alpha1traffic.TrafficRouter) []*routev3.Route {
+func buildHTTPRoutes(tr *traffic.TrafficRouter) []*routev3.Route {
 	var routes []*routev3.Route
 	for _, httpRoute := range tr.Spec.Http {
 		r := &routev3.Route{
@@ -70,7 +84,7 @@ func buildHTTPRoutes(tr *crdv1alpha1traffic.TrafficRouter) []*routev3.Route {
 	return routes
 }
 
-func buildUnweightedRouteAction(destination *crdv1alpha1traffic.HTTPRouteDestination, vs *crdv1alpha1traffic.TrafficRouter) *routev3.RouteAction {
+func buildUnweightedRouteAction(destination *traffic.HTTPRouteDestination, vs *traffic.TrafficRouter) *routev3.RouteAction {
 	if destination.Destination.Fallback != nil {
 		return &routev3.RouteAction{
 			ClusterSpecifier: &routev3.RouteAction_InlineClusterSpecifierPlugin{
@@ -84,7 +98,7 @@ func buildUnweightedRouteAction(destination *crdv1alpha1traffic.HTTPRouteDestina
 	}
 }
 
-func buildWeightedRouteAction(destinations []*crdv1alpha1traffic.HTTPRouteDestination, vs *crdv1alpha1traffic.TrafficRouter) *routev3.RouteAction {
+func buildWeightedRouteAction(destinations []*traffic.HTTPRouteDestination, vs *traffic.TrafficRouter) *routev3.RouteAction {
 	return &routev3.RouteAction{
 		ClusterSpecifier: &routev3.RouteAction_WeightedClusters{
 			WeightedClusters: &routev3.WeightedCluster{
@@ -94,7 +108,7 @@ func buildWeightedRouteAction(destinations []*crdv1alpha1traffic.HTTPRouteDestin
 	}
 }
 
-func buildWeightedClusters(namespace string, destinations []*crdv1alpha1traffic.HTTPRouteDestination) []*routev3.WeightedCluster_ClusterWeight {
+func buildWeightedClusters(namespace string, destinations []*traffic.HTTPRouteDestination) []*routev3.WeightedCluster_ClusterWeight {
 	var weightedClusters []*routev3.WeightedCluster_ClusterWeight
 	for _, destination := range destinations {
 		w := &routev3.WeightedCluster_ClusterWeight{
@@ -106,7 +120,7 @@ func buildWeightedClusters(namespace string, destinations []*crdv1alpha1traffic.
 	return weightedClusters
 }
 
-func buildRouteAction(httpRoute *crdv1alpha1traffic.HTTPRoute, vs *crdv1alpha1traffic.TrafficRouter) *routev3.RouteAction {
+func buildRouteAction(httpRoute *traffic.HTTPRoute, vs *traffic.TrafficRouter) *routev3.RouteAction {
 	if len(httpRoute.Route) == 1 {
 		// unweighted
 		return buildUnweightedRouteAction(httpRoute.Route[0], vs)
@@ -116,7 +130,7 @@ func buildRouteAction(httpRoute *crdv1alpha1traffic.HTTPRoute, vs *crdv1alpha1tr
 	}
 }
 
-func buildRouterFallbackActionCluster(fallback *crdv1alpha1traffic.Fallback, namespace string) string {
+func buildRouterFallbackActionCluster(fallback *traffic.Fallback, namespace string) string {
 	if fallback == nil {
 		return ""
 	}
@@ -148,7 +162,7 @@ func buildRouteActionCluster(serviceName, namespace, version string) string {
 	return "outbound|" + "|" + version + "|" + buildFQDN(serviceName, namespace)
 }
 
-func buildParamMatchers(matches []*crdv1alpha1traffic.HTTPMatchRequest) []*routev3.QueryParameterMatcher {
+func buildParamMatchers(matches []*traffic.HTTPMatchRequest) []*routev3.QueryParameterMatcher {
 	var queryParamMatchers []*routev3.QueryParameterMatcher
 	for _, match := range matches {
 		for _, matcher := range match.QueryParams {
@@ -185,7 +199,7 @@ func buildParamMatchers(matches []*crdv1alpha1traffic.HTTPMatchRequest) []*route
 	return queryParamMatchers
 }
 
-func buildHeaderMatchers(matches []*crdv1alpha1traffic.HTTPMatchRequest) []*routev3.HeaderMatcher {
+func buildHeaderMatchers(matches []*traffic.HTTPMatchRequest) []*routev3.HeaderMatcher {
 	var headerMatchers []*routev3.HeaderMatcher
 	for _, match := range matches {
 		for key, matcher := range match.Headers {

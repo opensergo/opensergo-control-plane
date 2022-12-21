@@ -14,8 +14,8 @@
 
 // Package v1alpha1 contains API Schema definitions for the OpenSergo traffic-router v1alpha1 CRD.
 // +kubebuilder:object:generate=true
-// +groupName=networking.istio.io
-// +versionName=v1beta1
+// +groupName=traffic.opensergo.io
+// +versionName=v1alpha1
 package traffic
 
 import (

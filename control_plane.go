@@ -15,6 +15,7 @@
 package opensergo
 
 import (
+	"log"
 	"os"
 	"sync"
 
@@ -130,11 +131,12 @@ func (c *ControlPlane) handleSubscribeRequest(clientIdentifier model.ClientIdent
 			err = c.sendMessageToStream(stream, request.Target.Namespace, request.Target.App, kind, nil, status, request.RequestId)
 			if err != nil {
 				// TODO: log here
+				log.Printf("sendMessageToStream failed, err=%s\n", err.Error())
 			}
 			continue
 		}
 		_ = c.server.ConnectionManager().Add(request.Target.Namespace, request.Target.App, kind, transport.NewConnection(clientIdentifier, stream))
-		// watcher缓存不空就发送
+		// send if the watcher cache is not empty
 		rules, version := crdWatcher.GetRules(model.NamespacedApp{
 			Namespace: request.Target.Namespace,
 			App:       request.Target.App,
@@ -152,6 +154,7 @@ func (c *ControlPlane) handleSubscribeRequest(clientIdentifier model.ClientIdent
 			err = c.sendMessageToStream(stream, request.Target.Namespace, request.Target.App, kind, dataWithVersion, status, request.RequestId)
 			if err != nil {
 				// TODO: log here
+				log.Printf("sendMessageToStream failed, err=%s\n", err.Error())
 			}
 		}
 	}

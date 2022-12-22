@@ -23,6 +23,7 @@ import (
 
 	"github.com/go-logr/logr"
 	crdv1alpha1 "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1"
+	crdv1alpha1traffic "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/traffic"
 	"github.com/opensergo/opensergo-control-plane/pkg/model"
 	pb "github.com/opensergo/opensergo-control-plane/pkg/proto/fault_tolerance/v1"
 	trpb "github.com/opensergo/opensergo-control-plane/pkg/proto/transport/v1"
@@ -148,10 +149,10 @@ func (r *CRDWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	app := ""
-	hasAppLabel := true
 	if crd != nil {
 		// TODO: bugs here: we need to check for namespace-app group, not only for app.
 		// 		 And we may also need to check for namespace change of a CRD.
+		var hasAppLabel bool
 		app, hasAppLabel = crd.GetLabels()["app"]
 		appSubscribed := r.HasAnySubscribedOfApp(app)
 		if !hasAppLabel || !appSubscribed {
@@ -314,6 +315,9 @@ func (r *CRDWatcher) translateCrdToProto(object client.Object) (*anypb.Any, erro
 			LimitMode:      util.Str2LimitNode(cls.Spec.LimitMode),
 			MaxConcurrency: cls.Spec.MaxConcurrencyThreshold,
 		}
+	case TrafficRouterKind:
+		cls := object.(*crdv1alpha1traffic.TrafficRouter)
+		rule = BuildRouteConfiguration(cls)
 	default:
 		return nil, nil
 	}

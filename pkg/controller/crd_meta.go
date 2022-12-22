@@ -16,6 +16,7 @@ package controller
 
 import (
 	"github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1"
+	"github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/traffic"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -51,6 +52,7 @@ const (
 	ThrottlingStrategyKind       = "fault-tolerance.opensergo.io/v1alpha1/ThrottlingStrategy"
 	ConcurrencyLimitStrategyKind = "fault-tolerance.opensergo.io/v1alpha1/ConcurrencyLimitStrategy"
 	CircuitBreakerStrategyKind   = "fault-tolerance.opensergo.io/v1alpha1/CircuitBreakerStrategy"
+	TrafficRouterKind            = "traffic.opensergo.io/v1alpha1/TrafficRouter"
 )
 
 var (
@@ -70,6 +72,9 @@ var (
 		}),
 		CircuitBreakerStrategyKind: NewCRDMetadata(CircuitBreakerStrategyKind, func() client.Object {
 			return &v1alpha1.CircuitBreakerStrategy{}
+		}),
+		TrafficRouterKind: NewCRDMetadata(TrafficRouterKind, func() client.Object {
+			return &traffic.TrafficRouter{}
 		}),
 	}
 )

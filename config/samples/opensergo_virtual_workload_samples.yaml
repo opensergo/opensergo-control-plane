@@ -1,0 +1,19 @@
+apiVersion: traffic.opensergo.io/v1alpha1
+kind: VirtualWorkload
+metadata:
+  name: service-provider-virtual-workload
+  namespace: default
+  labels:
+    app: service-provider
+spec:
+  host: service-provider
+  subsets:
+    - labels:
+        version: v1
+      name: v1
+    - labels:
+        version: v2
+      name: v2
+  trafficPolicy:
+    loadBalancer:
+      simple: ROUND_ROBIN

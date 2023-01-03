@@ -21,14 +21,13 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/opensergo/opensergo-control-plane/pkg/controller/env"
+	k8sclient "github.com/opensergo/opensergo-control-plane/pkg/client"
 
 	transform "github.com/opensergo/opensergo-control-plane/pkg/controller/transform"
 
 	"github.com/go-logr/logr"
 	crdv1alpha1 "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1"
-	crdv1alpha1traffic "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/traffic"
-	k8sclient "github.com/opensergo/opensergo-control-plane/pkg/client"
+	"github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/traffic"
 	"github.com/opensergo/opensergo-control-plane/pkg/model"
 	pb "github.com/opensergo/opensergo-control-plane/pkg/proto/fault_tolerance/v1"
 	trpb "github.com/opensergo/opensergo-control-plane/pkg/proto/transport/v1"
@@ -60,6 +59,17 @@ type CRDWatcher struct {
 
 	crdGenerator    func() client.Object
 	sendDataHandler model.DataEntirePushHandler
+
+	updateMux sync.RWMutex
+}
+
+type ActiveCRDWatcher struct {
+	kind model.SubscribeKind
+
+	client.Client
+	logger       logr.Logger
+	scheme       *runtime.Scheme
+	crdGenerator func() client.Object
 
 	updateMux sync.RWMutex
 }
@@ -321,17 +331,8 @@ func (r *CRDWatcher) translateCrdToProto(object client.Object) (*anypb.Any, erro
 			MaxConcurrency: cls.Spec.MaxConcurrencyThreshold,
 		}
 	case TrafficRouterKind:
-		cls := object.(*crdv1alpha1traffic.TrafficRouter)
-		envStr := env.GetENV()
-		switch envStr {
-		case env.K8S_ENV:
-			rule = transform.BuildRouteConfiguration(cls)
-		case env.ISTIO_ENV:
-			_, err := k8sclient.ApplyVirtualService(context.Background(), cls.Namespace, transform.BuildUnstructuredVirtualService(cls))
-			if err != nil {
-				return nil, err
-			}
-		}
+		cls := object.(*traffic.TrafficRouter)
+		rule = transform.BuildRouteConfiguration(cls)
 	default:
 		return nil, nil
 	}
@@ -357,4 +358,51 @@ func NewCRDWatcher(crdManager ctrl.Manager, kind model.SubscribeKind, crdGenerat
 		crdCache:             NewCRDCache(kind),
 		sendDataHandler:      sendDataHandler,
 	}
+}
+
+func NewActiveCRDWatcher(crdManager ctrl.Manager, kind model.SubscribeKind, crdGenerator func() client.Object) *ActiveCRDWatcher {
+	return &ActiveCRDWatcher{
+		kind:         kind,
+		Client:       crdManager.GetClient(),
+		logger:       ctrl.Log.WithName("controller").WithName(kind),
+		scheme:       crdManager.GetScheme(),
+		crdGenerator: crdGenerator,
+	}
+}
+
+func (a *ActiveCRDWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	switch a.kind {
+	case TrafficRouterKind:
+		crd := a.crdGenerator()
+		if err := a.Get(ctx, req.NamespacedName, crd); err != nil {
+			k8sApiErr, ok := err.(*k8sApiError.StatusError)
+			if !ok {
+				return ctrl.Result{
+					Requeue:      false,
+					RequeueAfter: 0,
+				}, nil
+			}
+			if k8sApiErr.Status().Code != http.StatusNotFound {
+				return ctrl.Result{
+					Requeue:      false,
+					RequeueAfter: 0,
+				}, nil
+			}
+
+			// cr had been deleted
+			crd = nil
+		}
+		if crd != nil {
+			cls := crd.(*traffic.TrafficRouter)
+			_, err := k8sclient.ApplyVirtualService(ctx, cls.Namespace, cls.Name, transform.BuildUnstructuredVirtualService(cls))
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+		} else {
+			return ctrl.Result{}, k8sclient.DeleteVirtualService(ctx, req.Namespace, req.Name)
+		}
+	default:
+		return ctrl.Result{}, nil
+	}
+	return ctrl.Result{}, nil
 }

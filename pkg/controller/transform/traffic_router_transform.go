@@ -19,22 +19,11 @@ import (
 	routev3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	matcherv3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"github.com/golang/protobuf/ptypes/wrappers"
+	"github.com/opensergo/opensergo-control-plane/constant"
 	"github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/traffic"
 	route "github.com/opensergo/opensergo-control-plane/pkg/proto/router/v1"
 	"github.com/opensergo/opensergo-control-plane/pkg/util"
-)
-
-const (
-	EXTENSION_ROUTE_FALL_BACK = "envoy.router.cluster_specifier_plugin.cluster_fallback"
-	CRD_API_VERSION           = "apiVersion"
-	CRD_KIND                  = "kind"
-	CRD_METADATA              = "metadata"
-	CRD_SPEC                  = "spec"
-
-	VIRTUAL_SERVICE_KIND       = "VirtualService"
-	VIRTUAL_SERVICE_V1_ALPHA3  = "networking.istio.io/v1alpha3"
-	VIRTUAL_SERVICE_HOST       = "hosts"
-	VIRTUAL_SERVICE_HTTP_MATCH = "http"
+	"k8s.io/apimachinery/pkg/util/json"
 )
 
 // BuildRouteConfiguration for Istio RouteConfiguration
@@ -55,14 +44,19 @@ func BuildRouteConfiguration(cls *traffic.TrafficRouter) *routev3.RouteConfigura
 }
 
 func BuildUnstructuredVirtualService(cls *traffic.TrafficRouter) map[string]interface{} {
-	cls.ObjectMeta.ResourceVersion = ""
+	crdMeta := map[string]interface{}{}
+	b, err := json.Marshal(cls.ObjectMeta)
+	if err == nil {
+		_ = json.Unmarshal(b, &crdMeta)
+	}
 	return map[string]interface{}{
-		CRD_API_VERSION: VIRTUAL_SERVICE_V1_ALPHA3,
-		CRD_KIND:        VIRTUAL_SERVICE_KIND,
-		CRD_METADATA:    cls.ObjectMeta,
-		CRD_SPEC: map[string]interface{}{
-			VIRTUAL_SERVICE_HOST:       cls.Spec.Hosts,
-			VIRTUAL_SERVICE_HTTP_MATCH: cls.Spec.Http,
+		constant.CRD_API_VERSION: constant.VIRTUAL_SERVICE_V1_ALPHA3,
+		constant.CRD_KIND:        constant.VIRTUAL_SERVICE_KIND,
+		constant.CRD_METADATA:    crdMeta,
+		constant.CRD_NAME:        cls.Name,
+		constant.CRD_SPEC: map[string]interface{}{
+			constant.VIRTUAL_SERVICE_HOST:       cls.Spec.Hosts,
+			constant.VIRTUAL_SERVICE_HTTP_MATCH: cls.Spec.Http,
 		},
 	}
 }
@@ -152,7 +146,7 @@ func buildClusterSpecifierPlugin(isSupport bool, config *route.ClusterFallbackCo
 
 	return &routev3.ClusterSpecifierPlugin{
 		Extension: &corev3.TypedExtensionConfig{
-			Name:        EXTENSION_ROUTE_FALL_BACK,
+			Name:        constant.EXTENSION_ROUTE_FALL_BACK,
 			TypedConfig: util.MessageToAny(config),
 		},
 	}

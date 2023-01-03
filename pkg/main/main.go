@@ -17,16 +17,20 @@ package main
 import (
 	"log"
 
-	"github.com/opensergo/opensergo-control-plane"
 	"github.com/opensergo/opensergo-control-plane/pkg/client"
+
+	"github.com/opensergo/opensergo-control-plane"
 )
 
 func main() {
+	err := client.Init()
+	if err != nil {
+		log.Fatal(err)
+	}
 	cp, err := opensergo.NewControlPlane()
 	if err != nil {
 		log.Fatal(err)
 	}
-	_ = client.Init()
 	err = cp.Start()
 	if err != nil {
 		log.Fatal(err)

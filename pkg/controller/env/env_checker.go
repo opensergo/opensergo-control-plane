@@ -14,10 +14,16 @@ const (
 	ISTIO_NAMESPACE       = "istio-system"
 )
 
+var env = ""
+
 func GetENV() string {
+	if env != "" {
+		return env
+	}
 	_, err := client.GetDeployment(context.Background(), ISTIO_DEPLOYMENT_NAME, ISTIO_NAMESPACE)
 	if err != nil {
-		return K8S_ENV
+		env = K8S_ENV
 	}
-	return ISTIO_ENV
+	env = ISTIO_ENV
+	return env
 }

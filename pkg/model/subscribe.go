@@ -29,6 +29,10 @@ type SubscribeTarget struct {
 	Kind SubscribeKind
 }
 
+func (st SubscribeTarget) NamespacedApp() NamespacedApp {
+	return NamespacedApp{st.Namespace, st.AppName}
+}
+
 type Instance struct {
 	ip          string
 	serviceType string

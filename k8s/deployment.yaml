@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opensergo-control-plane
+  namespace: opensergo-system
+  labels:
+    app: opensergo-control-plane
+spec:
+  selector:
+    matchLabels:
+      app: opensergo-control-plane
+  template:
+    metadata:
+      labels:
+        app: opensergo-control-plane
+    spec:
+      containers:
+        - name: opensergo-control-plane
+          image: opensergo-registry.cn-hangzhou.cr.aliyuncs.com/opensergo/opensergo-control-plane-poc:0.1.1
+          ports:
+            - containerPort: 10246
+      serviceAccount: opensergo-control-plane
+      serviceAccountName: opensergo-control-plane

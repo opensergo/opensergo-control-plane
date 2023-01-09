@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: opensergo-control-plane
-          image: opensergo-registry.cn-hangzhou.cr.aliyuncs.com/opensergo/opensergo-control-plane-poc:0.1.1
+          image: opensergo-registry.cn-hangzhou.cr.aliyuncs.com/opensergo/opensergo-control-plane:0.1.0
           ports:
             - containerPort: 10246
       serviceAccount: opensergo-control-plane

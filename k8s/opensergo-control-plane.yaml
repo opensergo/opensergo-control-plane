@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opensergo-control-plane
+  namespace: opensergo-system
+  labels:
+    app: opensergo-control-plane
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opensergo-control-plane
+  template:
+    metadata:
+      labels:
+        app: opensergo-control-plane
+    spec:
+      containers:
+        - name: opensergo-control-plane
+          image: opensergo-registry.cn-hangzhou.cr.aliyuncs.com/opensergo/opensergo-control-plane:0.1.0
+          ports:
+            - name: grpc
+              containerPort: 10246
+      serviceAccount: opensergo-control-plane
+      serviceAccountName: opensergo-control-plane
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opensergo-control-plane
+  namespace: opensergo-system
+spec:
+  type: ClusterIP
+  ports:
+    - port: 10246
+      protocol: TCP
+      targetPort: grpc
+  selector:
+    app: opensergo-control-plane

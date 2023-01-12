@@ -36,7 +36,7 @@ kubectl apply -f $OPENSERGO_CONTROL_PLANE_HOME/k8s/crd/bases
 
 
 # Uninstall Namespace
-kubectl delete -f $OPENSERGO_CONTROL_PLANE_HOME/cmd/install/k8s/namespace.yaml
+kubectl delete -f $OPENSERGO_CONTROL_PLANE_HOME/k8s/namespace.yaml
 # Download Namespace
 mkdir -p $OPENSERGO_CONTROL_PLANE_HOME/k8s
 wget --no-check-certificate -O $OPENSERGO_CONTROL_PLANE_HOME/k8s/namespace.yaml  https://raw.githubusercontent.com/opensergo/opensergo-control-plane/main/k8s/namespace.yaml
@@ -45,9 +45,9 @@ kubectl apply -f $OPENSERGO_CONTROL_PLANE_HOME/k8s/namespace.yaml
 
 
 # Uninstall rbac.yaml
-kubectl delete -f $OPENSERGO_CONTROL_PLANE_HOME/cmd/install/k8s/rbac/rbac.yaml
+kubectl delete -f $OPENSERGO_CONTROL_PLANE_HOME/k8s/rbac/rbac.yaml
 # Download rbac.yaml
-mkdir -p $OPENSERGO_CONTROL_PLANE_HOME/cmd/install/k8s/rbac
-wget --no-check-certificate -O $OPENSERGO_CONTROL_PLANE_HOME/cmd/install/k8s/rbac/rbac.yaml https://raw.githubusercontent.com/opensergo/opensergo-control-plane/main/cmd/install/k8s/rbac/rbac.yaml
+mkdir -p $OPENSERGO_CONTROL_PLANE_HOME/k8s/rbac
+wget --no-check-certificate -O $OPENSERGO_CONTROL_PLANE_HOME/k8s/rbac/rbac.yaml https://raw.githubusercontent.com/opensergo/opensergo-control-plane/main/k8s/rbac/rbac.yaml
 # Install rbac.yaml
-kubectl apply -f $OPENSERGO_CONTROL_PLANE_HOME/cmd/install/k8s/rbac/rbac.yaml
+kubectl apply -f $OPENSERGO_CONTROL_PLANE_HOME/k8s/rbac/rbac.yaml

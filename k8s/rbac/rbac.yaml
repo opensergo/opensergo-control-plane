@@ -1,11 +1,4 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: opensergo-system
-  labels:
-    name: opensergo-system
 
----
 apiVersion: v1
 kind: ServiceAccount
 metadata:

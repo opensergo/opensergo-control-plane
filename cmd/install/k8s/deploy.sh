@@ -22,9 +22,10 @@ mkdir -p $OPENSERGO_CONTROL_PLANE_HOME
 
 
 # Uninstall opensergo-control-plane.yaml
-kubectl delete -f $OPENSERGO_CONTROL_PLANE_HOME/cmd/install/k8s/opensergo-control-plane.yaml
+kubectl delete -f $OPENSERGO_CONTROL_PLANE_HOME/k8s/workload/opensergo-control-plane.yaml
+
 # Download opensergo-control-plane.yaml
-mkdir -p $OPENSERGO_CONTROL_PLANE_HOME/cmd/install/k8s
-wget --no-check-certificate -O $OPENSERGO_CONTROL_PLANE_HOME/cmd/install/k8s/opensergo-control-plane.yaml https://raw.githubusercontent.com/opensergo/opensergo-control-plane/main/cmd/install/k8s/opensergo-control-plane.yaml
+mkdir -p $OPENSERGO_CONTROL_PLANE_HOME/k8s/workload
+wget --no-check-certificate -O $OPENSERGO_CONTROL_PLANE_HOME/k8s/workload/opensergo-control-plane.yaml https://raw.githubusercontent.com/opensergo/opensergo-control-plane/main/k8s/workload/opensergo-control-plane.yaml
 # Install opensergo-control-plane.yaml
-kubectl apply -f $OPENSERGO_CONTROL_PLANE_HOME/cmd/install/k8s/opensergo-control-plane.yaml
+kubectl apply -f $OPENSERGO_CONTROL_PLANE_HOME/k8s/workload/opensergo-control-plane.yaml

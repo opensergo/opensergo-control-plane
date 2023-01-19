@@ -23,4 +23,9 @@ const (
 	DESTINATION_RULE_SUBSETS           = "subsets"
 	DESTINATION_RULE_TRAFFIC_POLICY    = "trafficPolicy"
 	DESTINATION_RULE_WORKLOAD_SELECTOR = "workloadSelector"
+
+	CDS_URL = "type.googleapis.com/envoy.config.cluster.v3.Cluster"
+	EDS_URL = "type.googleapis.com/envoy.config.endpoint.v3.ClusterLoadAssignment"
+	LDS_URL = "type.googleapis.com/envoy.config.listener.v3.Listener"
+	RDS_URL = "type.googleapis.com/envoy.config.route.v3.RouteConfiguration"
 )

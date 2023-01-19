@@ -2,15 +2,68 @@ package controller
 
 import (
 	"encoding/json"
+	"log"
 
 	clusterv3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/opensergo/opensergo-control-plane/constant"
 	"github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/traffic"
 )
 
-func BuildRouteConfigurationByVirtualWorkload(cls *traffic.VirtualWorkload) *clusterv3.Cluster {
-	// Does not need VirtualWorkload now
-	return nil
+func BuildClusterByVirtualWorkload(cls *traffic.VirtualWorkload) []*clusterv3.Cluster {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Printf("Error on build Cluster By VirtualWorkload: %v", err)
+		}
+	}()
+	// Only support subset and lb policy now
+	// TODO: ConnectionPool, OutlierDetection, TLSSettings, LocalityLB, Consistent Hash and so on
+	var clusters []*clusterv3.Cluster
+	for _, subset := range cls.Spec.Subsets {
+		clusters = append(clusters, &clusterv3.Cluster{
+			Name:     buildSubsetName(cls.Spec.Host, subset.Name),
+			LbPolicy: buildLbPolicy(subset.TrafficPolicy),
+		})
+	}
+	clusters = append(clusters, &clusterv3.Cluster{
+		Name:     buildSubsetName(cls.Spec.Host, ""),
+		LbPolicy: buildLbPolicy(cls.Spec.TrafficPolicy),
+	})
+	return clusters
+}
+
+func buildLbPolicy(trafficPolicy *traffic.TrafficPolicy) clusterv3.Cluster_LbPolicy {
+	if trafficPolicy == nil {
+		return clusterv3.Cluster_ROUND_ROBIN
+	}
+	policy := trafficPolicy.LoadBalancer.LbPolicy
+	if simpleLb, ok := policy.(*traffic.LoadBalancerSettings_Simple); ok {
+		switch simpleLb.Simple {
+		case traffic.LoadBalancerSettings_LEAST_REQUEST:
+			return clusterv3.Cluster_LEAST_REQUEST
+		case traffic.LoadBalancerSettings_RANDOM:
+			return clusterv3.Cluster_RANDOM
+		case traffic.LoadBalancerSettings_ROUND_ROBIN:
+			return clusterv3.Cluster_ROUND_ROBIN
+		case traffic.LoadBalancerSettings_PASSTHROUGH:
+			return clusterv3.Cluster_CLUSTER_PROVIDED
+		default:
+			return clusterv3.Cluster_ROUND_ROBIN
+		}
+	}
+
+	if consistentHashLb, ok := policy.(*traffic.LoadBalancerSettings_ConsistentHash); ok {
+		alg := consistentHashLb.ConsistentHash.HashAlgorithm
+
+		if _, ok := alg.(*traffic.LoadBalancerSettings_ConsistentHashLB_Maglev); ok {
+			return clusterv3.Cluster_MAGLEV
+		}
+
+		if _, ok := alg.(*traffic.LoadBalancerSettings_ConsistentHashLB_RingHash_); ok {
+			return clusterv3.Cluster_RING_HASH
+		}
+	}
+	// Default algorithm is ROUND_ROBIN
+	return clusterv3.Cluster_ROUND_ROBIN
 }
 
 func BuildUnstructuredDestinationRule(cls *traffic.VirtualWorkload) map[string]interface{} {

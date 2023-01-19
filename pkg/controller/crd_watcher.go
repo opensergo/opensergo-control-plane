@@ -21,6 +21,9 @@ import (
 	"strconv"
 	"sync"
 
+	discoveryv3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
+	"github.com/opensergo/opensergo-control-plane/constant"
+
 	"github.com/opensergo/opensergo-control-plane/pkg/client/gvr"
 
 	k8sclient "github.com/opensergo/opensergo-control-plane/pkg/client"
@@ -335,7 +338,16 @@ func (r *CRDWatcher) translateCrdToProto(object client.Object) (*anypb.Any, erro
 		rule = transform.BuildRouteConfigurationByTrafficRouter(cls)
 	case VirtualWorkloadsKind:
 		cls := object.(*traffic.VirtualWorkload)
-		rule = transform.BuildRouteConfigurationByVirtualWorkload(cls)
+		clusters := transform.BuildClusterByVirtualWorkload(cls)
+		var resources []*anypb.Any
+		for _, cluster := range clusters {
+			resourceAny := util.MessageToAny(cluster)
+			resources = append(resources, resourceAny)
+		}
+		rule = &discoveryv3.DiscoveryResponse{
+			Resources: resources,
+			TypeUrl:   constant.CDS_URL,
+		}
 	default:
 		return nil, nil
 	}

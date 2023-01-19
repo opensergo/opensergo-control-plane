@@ -15,6 +15,8 @@
 package controller
 
 import (
+	"log"
+
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	routev3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	matcherv3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
@@ -28,6 +30,11 @@ import (
 
 // BuildRouteConfiguration for Istio RouteConfiguration
 func BuildRouteConfigurationByTrafficRouter(cls *traffic.TrafficRouter) *routev3.RouteConfiguration {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Printf("Error on build RouteConfiguration By TrafficRouter: %v", err)
+		}
+	}()
 	virtualHost := &routev3.VirtualHost{
 		Name:   cls.Name,
 		Routes: []*routev3.Route{},
@@ -154,6 +161,10 @@ func buildClusterSpecifierPlugin(isSupport bool, config *route.ClusterFallbackCo
 
 func buildRouteActionCluster(serviceName, namespace, version string) string {
 	return "outbound|" + "|" + version + "|" + buildFQDN(serviceName, namespace)
+}
+
+func buildSubsetName(hostName, subsetName string) string {
+	return "outbound|" + "80" + "|" + subsetName + "|" + hostName + "|"
 }
 
 func buildParamMatchers(matches []*traffic.HTTPMatchRequest) []*routev3.QueryParameterMatcher {

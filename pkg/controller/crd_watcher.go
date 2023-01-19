@@ -21,6 +21,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/opensergo/opensergo-control-plane/pkg/client/gvr"
+
 	k8sclient "github.com/opensergo/opensergo-control-plane/pkg/client"
 
 	transform "github.com/opensergo/opensergo-control-plane/pkg/controller/transform"
@@ -330,7 +332,10 @@ func (r *CRDWatcher) translateCrdToProto(object client.Object) (*anypb.Any, erro
 		}
 	case TrafficRouterKind:
 		cls := object.(*traffic.TrafficRouter)
-		rule = transform.BuildRouteConfiguration(cls)
+		rule = transform.BuildRouteConfigurationByTrafficRouter(cls)
+	case VirtualWorkloadsKind:
+		cls := object.(*traffic.VirtualWorkload)
+		rule = transform.BuildRouteConfigurationByVirtualWorkload(cls)
 	default:
 		return nil, nil
 	}
@@ -369,35 +374,45 @@ func NewActiveCRDWatcher(crdManager ctrl.Manager, kind model.SubscribeKind, crdG
 }
 
 func (a *ActiveCRDWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	crd := a.crdGenerator()
+	if err := a.Get(ctx, req.NamespacedName, crd); err != nil {
+		k8sApiErr, ok := err.(*k8sApiError.StatusError)
+		if !ok {
+			return ctrl.Result{
+				Requeue:      false,
+				RequeueAfter: 0,
+			}, nil
+		}
+		if k8sApiErr.Status().Code != http.StatusNotFound {
+			return ctrl.Result{
+				Requeue:      false,
+				RequeueAfter: 0,
+			}, nil
+		}
+
+		// cr had been deleted
+		crd = nil
+	}
 	switch a.kind {
 	case TrafficRouterKind:
-		crd := a.crdGenerator()
-		if err := a.Get(ctx, req.NamespacedName, crd); err != nil {
-			k8sApiErr, ok := err.(*k8sApiError.StatusError)
-			if !ok {
-				return ctrl.Result{
-					Requeue:      false,
-					RequeueAfter: 0,
-				}, nil
-			}
-			if k8sApiErr.Status().Code != http.StatusNotFound {
-				return ctrl.Result{
-					Requeue:      false,
-					RequeueAfter: 0,
-				}, nil
-			}
-
-			// cr had been deleted
-			crd = nil
-		}
 		if crd != nil {
 			cls := crd.(*traffic.TrafficRouter)
-			_, err := k8sclient.ApplyVirtualService(ctx, cls.Namespace, cls.Name, transform.BuildUnstructuredVirtualService(cls))
+			_, err := k8sclient.ApplyCRD(ctx, cls.Namespace, cls.Name, transform.BuildUnstructuredVirtualService(cls), gvr.VirtualServiceGVR)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
 		} else {
-			return ctrl.Result{}, k8sclient.DeleteVirtualService(ctx, req.Namespace, req.Name)
+			return ctrl.Result{}, k8sclient.DeleteCRD(ctx, req.Namespace, req.Name, gvr.VirtualServiceGVR)
+		}
+	case VirtualWorkloadsKind:
+		if crd != nil {
+			cls := crd.(*traffic.VirtualWorkload)
+			_, err := k8sclient.ApplyCRD(ctx, cls.Namespace, cls.Name, transform.BuildUnstructuredDestinationRule(cls), gvr.DestinationRuleGVR)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+		} else {
+			return ctrl.Result{}, k8sclient.DeleteCRD(ctx, req.Namespace, req.Name, gvr.DestinationRuleGVR)
 		}
 	default:
 		return ctrl.Result{}, nil

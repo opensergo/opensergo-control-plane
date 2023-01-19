@@ -6,11 +6,11 @@ import (
 	"os"
 	"path/filepath"
 
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
 	"github.com/opensergo/opensergo-control-plane/constant"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
-	"github.com/opensergo/opensergo-control-plane/pkg/client/gvr"
 
 	"k8s.io/client-go/kubernetes"
 
@@ -63,27 +63,26 @@ func GetDeployment(ctx context.Context, deploymentName, namespace string) (deplo
 	return
 }
 
-func DeleteVirtualService(ctx context.Context, namespace, name string) error {
-	return dynamicClient.Resource(gvr.VirtualServiceGVR).Namespace(namespace).Delete(ctx, name, metav1.DeleteOptions{})
-}
-
-func ApplyVirtualService(ctx context.Context, namespace, name string, unstructuredMap map[string]interface{}) (un *unstructured.Unstructured, err error) {
-	meta, ok := unstructuredMap[constant.CRD_METADATA].(map[string]interface{})
-	if !ok {
-		return nil, errors.New("Unknown exception, No metadata in crd")
+func ApplyCRD(ctx context.Context, namespace, name string, unstructuredMap map[string]interface{}, gvr schema.GroupVersionResource) (un *unstructured.Unstructured, err error) {
+	meta, err := prepareMeta(unstructuredMap)
+	if err != nil {
+		return nil, err
 	}
-	meta[constant.META_RESOURCE_VERSION], unstructuredMap[constant.CRD_METADATA] = "", meta
-	vs, err := dynamicClient.Resource(gvr.VirtualServiceGVR).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
+	vs, err := dynamicClient.Resource(gvr).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err == nil {
 		meta[constant.META_UID], meta[constant.META_RESOURCE_VERSION], unstructuredMap[constant.CRD_METADATA] = "", vs.GetResourceVersion(), meta
-		un, err = dynamicClient.Resource(gvr.VirtualServiceGVR).Namespace(namespace).Update(ctx, &unstructured.Unstructured{Object: unstructuredMap}, metav1.UpdateOptions{})
+		un, err = dynamicClient.Resource(gvr).Namespace(namespace).Update(ctx, &unstructured.Unstructured{Object: unstructuredMap}, metav1.UpdateOptions{})
 		if err != nil {
 			log.Printf("Apply VirtualService in namespace %s failed, err is %v", namespace, err)
 		}
 	} else {
-		un, err = dynamicClient.Resource(gvr.VirtualServiceGVR).Namespace(namespace).Create(ctx, &unstructured.Unstructured{Object: unstructuredMap}, metav1.CreateOptions{})
+		un, err = dynamicClient.Resource(gvr).Namespace(namespace).Create(ctx, &unstructured.Unstructured{Object: unstructuredMap}, metav1.CreateOptions{})
 	}
 	return
+}
+
+func DeleteCRD(ctx context.Context, namespace, name string, gvr schema.GroupVersionResource) error {
+	return dynamicClient.Resource(gvr).Namespace(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 }
 
 func DynamicClient() dynamic.Interface {
@@ -100,4 +99,13 @@ func homeDir() (h string, err error) {
 		return h, nil
 	}
 	return "", errors.New("No home directory")
+}
+
+func prepareMeta(unstructuredMap map[string]interface{}) (map[string]interface{}, error) {
+	meta, ok := unstructuredMap[constant.CRD_METADATA].(map[string]interface{})
+	if !ok {
+		return nil, errors.New("Unknown exception, No metadata in crd")
+	}
+	meta[constant.META_RESOURCE_VERSION], unstructuredMap[constant.CRD_METADATA] = "", meta
+	return meta, nil
 }

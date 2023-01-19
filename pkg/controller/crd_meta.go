@@ -53,6 +53,7 @@ const (
 	ConcurrencyLimitStrategyKind = "fault-tolerance.opensergo.io/v1alpha1/ConcurrencyLimitStrategy"
 	CircuitBreakerStrategyKind   = "fault-tolerance.opensergo.io/v1alpha1/CircuitBreakerStrategy"
 	TrafficRouterKind            = "traffic.opensergo.io/v1alpha1/TrafficRouter"
+	VirtualWorkloadsKind         = "traffic.opensergo.io/v1alpha1/VirtualWorkload"
 )
 
 var (
@@ -75,6 +76,9 @@ var (
 		}),
 		TrafficRouterKind: NewCRDMetadata(TrafficRouterKind, func() client.Object {
 			return &traffic.TrafficRouter{}
+		}),
+		VirtualWorkloadsKind: NewCRDMetadata(VirtualWorkloadsKind, func() client.Object {
+			return &traffic.VirtualWorkload{}
 		}),
 	}
 )

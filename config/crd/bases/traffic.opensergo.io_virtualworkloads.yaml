@@ -20,7 +20,7 @@ spec:
     listKind: VirtualWorkloadList
     plural: virtualworkloads
     shortNames:
-      - dr
+      - vw
     singular: virtualworkload
   scope: Namespaced
   versions:

@@ -27,7 +27,7 @@ import (
 )
 
 // BuildRouteConfiguration for Istio RouteConfiguration
-func BuildRouteConfiguration(cls *traffic.TrafficRouter) *routev3.RouteConfiguration {
+func BuildRouteConfigurationByTrafficRouter(cls *traffic.TrafficRouter) *routev3.RouteConfiguration {
 	virtualHost := &routev3.VirtualHost{
 		Name:   cls.Name,
 		Routes: []*routev3.Route{},
@@ -50,7 +50,7 @@ func BuildUnstructuredVirtualService(cls *traffic.TrafficRouter) map[string]inte
 		_ = json.Unmarshal(b, &crdMeta)
 	}
 	return map[string]interface{}{
-		constant.CRD_API_VERSION: constant.VIRTUAL_SERVICE_V1_ALPHA3,
+		constant.CRD_API_VERSION: constant.VERSION_V1_ALPHA3,
 		constant.CRD_KIND:        constant.VIRTUAL_SERVICE_KIND,
 		constant.CRD_METADATA:    crdMeta,
 		constant.CRD_NAME:        cls.Name,

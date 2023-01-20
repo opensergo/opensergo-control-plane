@@ -35,33 +35,31 @@ func buildLbPolicy(trafficPolicy *traffic.TrafficPolicy) clusterv3.Cluster_LbPol
 	if trafficPolicy == nil {
 		return clusterv3.Cluster_ROUND_ROBIN
 	}
-	policy := trafficPolicy.LoadBalancer.LbPolicy
-	if simpleLb, ok := policy.(*traffic.LoadBalancerSettings_Simple); ok {
-		switch simpleLb.Simple {
-		case traffic.LoadBalancerSettings_LEAST_REQUEST:
-			return clusterv3.Cluster_LEAST_REQUEST
-		case traffic.LoadBalancerSettings_RANDOM:
-			return clusterv3.Cluster_RANDOM
-		case traffic.LoadBalancerSettings_ROUND_ROBIN:
-			return clusterv3.Cluster_ROUND_ROBIN
-		case traffic.LoadBalancerSettings_PASSTHROUGH:
-			return clusterv3.Cluster_CLUSTER_PROVIDED
-		default:
-			return clusterv3.Cluster_ROUND_ROBIN
-		}
+	sample := trafficPolicy.LoadBalancer.Simple
+	switch sample {
+	case traffic.LoadBalancerSettings_LEAST_REQUEST:
+		return clusterv3.Cluster_LEAST_REQUEST
+	case traffic.LoadBalancerSettings_RANDOM:
+		return clusterv3.Cluster_RANDOM
+	case traffic.LoadBalancerSettings_ROUND_ROBIN:
+		return clusterv3.Cluster_ROUND_ROBIN
+	case traffic.LoadBalancerSettings_PASSTHROUGH:
+		return clusterv3.Cluster_CLUSTER_PROVIDED
+	default:
+		return clusterv3.Cluster_ROUND_ROBIN
 	}
 
-	if consistentHashLb, ok := policy.(*traffic.LoadBalancerSettings_ConsistentHash); ok {
-		alg := consistentHashLb.ConsistentHash.HashAlgorithm
+	consistentHash := trafficPolicy.LoadBalancer.ConsistentHash
+	alg := consistentHash.HashAlgorithm
 
-		if _, ok := alg.(*traffic.LoadBalancerSettings_ConsistentHashLB_Maglev); ok {
-			return clusterv3.Cluster_MAGLEV
-		}
-
-		if _, ok := alg.(*traffic.LoadBalancerSettings_ConsistentHashLB_RingHash_); ok {
-			return clusterv3.Cluster_RING_HASH
-		}
+	if _, ok := alg.(*traffic.LoadBalancerSettings_ConsistentHashLB_Maglev); ok {
+		return clusterv3.Cluster_MAGLEV
 	}
+
+	if _, ok := alg.(*traffic.LoadBalancerSettings_ConsistentHashLB_RingHash_); ok {
+		return clusterv3.Cluster_RING_HASH
+	}
+
 	// Default algorithm is ROUND_ROBIN
 	return clusterv3.Cluster_ROUND_ROBIN
 }

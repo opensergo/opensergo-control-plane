@@ -23,6 +23,7 @@ func GetENV() string {
 	_, err := client.GetDeployment(context.Background(), ISTIO_DEPLOYMENT_NAME, ISTIO_NAMESPACE)
 	if err != nil {
 		env = K8S_ENV
+		return env
 	}
 	env = ISTIO_ENV
 	return env

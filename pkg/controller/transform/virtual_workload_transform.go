@@ -36,6 +36,7 @@ func buildLbPolicy(trafficPolicy *traffic.TrafficPolicy) clusterv3.Cluster_LbPol
 		return clusterv3.Cluster_ROUND_ROBIN
 	}
 	sample := trafficPolicy.LoadBalancer.Simple
+
 	switch sample {
 	case traffic.LoadBalancerSettings_LEAST_REQUEST:
 		return clusterv3.Cluster_LEAST_REQUEST
@@ -45,8 +46,6 @@ func buildLbPolicy(trafficPolicy *traffic.TrafficPolicy) clusterv3.Cluster_LbPol
 		return clusterv3.Cluster_ROUND_ROBIN
 	case traffic.LoadBalancerSettings_PASSTHROUGH:
 		return clusterv3.Cluster_CLUSTER_PROVIDED
-	default:
-		return clusterv3.Cluster_ROUND_ROBIN
 	}
 
 	consistentHash := trafficPolicy.LoadBalancer.ConsistentHash

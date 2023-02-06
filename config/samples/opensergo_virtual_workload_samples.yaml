@@ -14,6 +14,3 @@ spec:
     - labels:
         version: v2
       name: v2
-  trafficPolicy:
-    loadBalancer:
-      simple: ROUND_ROBIN

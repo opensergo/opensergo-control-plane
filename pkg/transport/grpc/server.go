@@ -61,6 +61,10 @@ func (s *Server) ComponentName() string {
 	return "OpenSergoUniversalTransportServer"
 }
 
+func (s *Server) IsStarted() bool {
+	return s.started.Load()
+}
+
 func (s *Server) Run() error {
 	if s.started.CAS(false, true) {
 		listener, err := net.Listen("tcp", fmt.Sprintf(":%d", s.port))

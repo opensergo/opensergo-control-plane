@@ -132,9 +132,26 @@ func (c *ConnectionManager) removeInternal(n model.NamespacedApp, kind string, i
 		return nil
 	}
 	delete(streams, identifier)
+
+	streams, exists = kindMap[kind]
+	// !exists || streams == nil || len(streams) < 1
+	// means after delete, there is no elements in kindMap[kind]
+	// then delete kind from kindMap
+	if !exists || streams == nil || len(streams) < 1 {
+		delete(kindMap, kind)
+	}
+	kindMap, exists = c.connectionMap[n]
+	// !exists || kindMap == nil || len(kindMap) < 1
+	// means after delete, there is no elements in  c.connectionMap[n]
+	// then delete n from  c.connectionMap[n]
+	if !exists || kindMap == nil || len(kindMap) < 1 {
+		delete(c.connectionMap, n)
+	}
+
 	return nil
 }
 
+// RemoveByIdentifier with a sync.RWMutex
 func (c *ConnectionManager) RemoveByIdentifier(identifier model.ClientIdentifier) error {
 	c.updateMux.Lock()
 	defer c.updateMux.Unlock()
@@ -143,6 +160,7 @@ func (c *ConnectionManager) RemoveByIdentifier(identifier model.ClientIdentifier
 	if !exists {
 		return nil
 	}
+	// remove from connectionMap
 	for n, kinds := range NamespaceAppKinds {
 		for _, kind := range kinds {
 			err := c.removeInternal(n, kind, identifier)
@@ -150,6 +168,18 @@ func (c *ConnectionManager) RemoveByIdentifier(identifier model.ClientIdentifier
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+// RemoveWithIdentifier with a sync.RWMutex
+func (c *ConnectionManager) RemoveWithIdentifier(namespacedApp model.NamespacedApp, kind string, identifier model.ClientIdentifier) error {
+	c.updateMux.Lock()
+	defer c.updateMux.Unlock()
+	// remove from connectionMap
+	err := c.removeInternal(namespacedApp, kind, identifier)
+	if err != nil {
+		return err
 	}
 	return nil
 }

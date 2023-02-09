@@ -129,6 +129,8 @@ func (k *KubernetesOperator) RegisterWatcher(target model.SubscribeTarget) (*CRD
 
 	existingWatcher, exists := k.controllers[target.Kind]
 	if exists {
+		// TODO optimized delete logic here
+		existingWatcher.deleted.Store(false)
 		if existingWatcher.HasSubscribed(target) {
 			// Target has been subscribed
 			return existingWatcher, nil
@@ -168,6 +170,8 @@ func (k *KubernetesOperator) AddWatcher(target model.SubscribeTarget) error {
 
 	existingWatcher, exists := k.controllers[target.Kind]
 	if exists && !existingWatcher.HasSubscribed(target) {
+		// TODO optimized delete logic here
+		existingWatcher.deleted.Store(false)
 		// TODO: think more about here
 		err = existingWatcher.AddSubscribeTarget(target)
 		if err != nil {
@@ -197,6 +201,44 @@ func (k *KubernetesOperator) AddWatcher(target model.SubscribeTarget) error {
 
 	}
 	setupLog.Info("OpenSergo CRD watcher has been added successfully")
+	return nil
+}
+
+// UnRegisterWatcher unRegisters given SubscribeTarget.
+func (k *KubernetesOperator) UnRegisterWatcher(target model.SubscribeTarget) error {
+	k.controllerMux.Lock()
+	defer k.controllerMux.Unlock()
+
+	existingWatcher, exists := k.controllers[target.Kind]
+	if !exists {
+		return nil
+	}
+
+	if existingWatcher.HasAnySubscribedOfNamespace(target.Namespace) {
+		err := existingWatcher.RemoveSubscribeTarget(target)
+		if err != nil {
+			return err
+		}
+		if !existingWatcher.HasAnySubscribedOfNamespace(target.Namespace) {
+			if err = k.removeWatcher(existingWatcher, target); err != nil {
+				return err
+			}
+		}
+	} else {
+		if err := k.removeWatcher(existingWatcher, target); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (k *KubernetesOperator) removeWatcher(crdWatcher *CRDWatcher, target model.SubscribeTarget) error {
+	delete(k.controllers, target.Kind)
+	// TODO add Shutdown logic
+	if err := crdWatcher.ShutdownWithManager(k.crdManager); err != nil {
+		return err
+	}
 	return nil
 }
 

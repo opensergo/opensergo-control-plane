@@ -12,25 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package config
 
-import (
-	"log"
-
-	"github.com/opensergo/opensergo-control-plane"
-	"github.com/opensergo/opensergo-control-plane/pkg/config"
+const (
+	DefaultConfPath string = "./config"
+	DefaultPort     uint   = 10246
 )
 
-func main() {
-	c := config.NewDefaultConfig()
-	opts := c.InitOptsFromCommand()
+type OpenSergoConfig struct {
+	ConfPath string
+	Port     uint `yaml:"endpointPort" json:"endpointPort"`
+}
 
-	cp, err := opensergo.NewControlPlane(opts...)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = cp.Start()
-	if err != nil {
-		log.Fatal(err)
+func NewDefaultConfig() *OpenSergoConfig {
+	return &OpenSergoConfig{
+		ConfPath: DefaultConfPath,
+		Port:     DefaultPort,
 	}
 }

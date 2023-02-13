@@ -19,6 +19,8 @@ import (
 	"os"
 	"sync"
 
+	"github.com/opensergo/opensergo-control-plane/pkg/config"
+
 	"github.com/opensergo/opensergo-control-plane/pkg/controller"
 	"github.com/opensergo/opensergo-control-plane/pkg/model"
 	trpb "github.com/opensergo/opensergo-control-plane/pkg/proto/transport/v1"
@@ -35,7 +37,12 @@ type ControlPlane struct {
 	mux sync.RWMutex
 }
 
-func NewControlPlane() (*ControlPlane, error) {
+func NewControlPlane(opts ...config.Option) (*ControlPlane, error) {
+	c, err := config.LoadConfig(opts...)
+	if err != nil {
+		return nil, err
+	}
+
 	cp := &ControlPlane{}
 
 	operator, err := controller.NewKubernetesOperator(cp.sendMessage)
@@ -43,7 +50,7 @@ func NewControlPlane() (*ControlPlane, error) {
 		return nil, err
 	}
 
-	cp.server = transport.NewServer(uint32(10246), []model.SubscribeRequestHandler{cp.handleSubscribeRequest})
+	cp.server = transport.NewServer(c.Port, []model.SubscribeRequestHandler{cp.handleSubscribeRequest})
 	cp.operator = operator
 
 	hostname, herr := os.Hostname()

@@ -145,7 +145,7 @@ func (k *KubernetesOperator) RegisterWatcher(target model.SubscribeTarget, isSec
 			return nil, errors.New("CRD not supported: " + target.Kind)
 		}
 		// This kind of CRD has never been watched.
-		crdWatcher := NewCRDWatcher(k.crdManager, target.Kind, crdMetadata.Generator(), k.sendDataHandler, isSecure)
+		crdWatcher := NewCRDWatcher(k.crdManager, target.Kind, crdMetadata.Generator(), k.sendDataHandler)
 		err = crdWatcher.AddSubscribeTarget(target)
 		if err != nil {
 			return nil, err
@@ -178,7 +178,7 @@ func (k *KubernetesOperator) AddWatcher(target model.SubscribeTarget, isSecure b
 		if !crdSupports {
 			return errors.New("CRD not supported: " + target.Kind)
 		}
-		crdWatcher := NewCRDWatcher(k.crdManager, target.Kind, crdMetadata.Generator(), k.sendDataHandler, isSecure)
+		crdWatcher := NewCRDWatcher(k.crdManager, target.Kind, crdMetadata.Generator(), k.sendDataHandler)
 		err = crdWatcher.AddSubscribeTarget(target)
 		if err != nil {
 			return err

@@ -330,7 +330,7 @@ func (r *CRDWatcher) translateCrdToProto(object client.Object) (*anypb.Any, erro
 
 }
 
-func NewCRDWatcher(crdManager ctrl.Manager, kind model.SubscribeKind, crdGenerator func() client.Object, sendDataHandler model.DataEntirePushHandler, isSecure bool) *CRDWatcher {
+func NewCRDWatcher(crdManager ctrl.Manager, kind model.SubscribeKind, crdGenerator func() client.Object, sendDataHandler model.DataEntirePushHandler) *CRDWatcher {
 	return &CRDWatcher{
 		kind:                 kind,
 		Client:               crdManager.GetClient(),

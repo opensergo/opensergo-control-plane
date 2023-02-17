@@ -1,4 +1,3 @@
-// Copyright 2022, OpenSergo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,22 +11,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package cert
 
-import (
-	"log"
+import "crypto/tls"
 
-	"github.com/opensergo/opensergo-control-plane"
-)
+var provider CertProvider
 
-func main() {
-	cp, err := opensergo.NewControlPlane()
-	if err != nil {
-		log.Fatal(err)
+// Use EnvCertProvider by default
+func init() {
+	provider = &EnvCertProvider{
+		certEnvKey: "OPENSERGO_10248_CERT",
+		pkEnvKey:   "OPENSERGO_10248_KEY",
 	}
-	err = cp.Start()
-	if err != nil {
-		log.Fatal(err)
-	}
+}
 
+func GetCertificate(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
+	return provider.GetCert(info)
 }

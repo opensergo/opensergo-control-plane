@@ -107,8 +107,8 @@ func NewKubernetesOperator(sendDataHandler model.DataEntirePushHandler) (*Kubern
 	return k, nil
 }
 
-func (k *KubernetesOperator) RegisterControllersAndStart(info model.SubscribeTarget) error {
-	_, err := k.RegisterWatcher(info)
+func (k *KubernetesOperator) RegisterControllersAndStart(info model.SubscribeTarget, isSecure bool) error {
+	_, err := k.RegisterWatcher(info, isSecure)
 	if err != nil {
 		return err
 	}
@@ -117,7 +117,7 @@ func (k *KubernetesOperator) RegisterControllersAndStart(info model.SubscribeTar
 
 // RegisterWatcher registers given CRD type and CRD name.
 // For each CRD type, it can be registered only once.
-func (k *KubernetesOperator) RegisterWatcher(target model.SubscribeTarget) (*CRDWatcher, error) {
+func (k *KubernetesOperator) RegisterWatcher(target model.SubscribeTarget, isSecure bool) (*CRDWatcher, error) {
 	k.controllerMux.Lock()
 	defer k.controllerMux.Unlock()
 
@@ -141,7 +141,7 @@ func (k *KubernetesOperator) RegisterWatcher(target model.SubscribeTarget) (*CRD
 			return nil, errors.New("CRD not supported: " + target.Kind)
 		}
 		// This kind of CRD has never been watched.
-		crdWatcher := NewCRDWatcher(k.crdManager, target.Kind, crdMetadata.Generator(), k.sendDataHandler)
+		crdWatcher := NewCRDWatcher(k.crdManager, target.Kind, crdMetadata.Generator(), k.sendDataHandler, isSecure)
 		err = crdWatcher.AddSubscribeTarget(target)
 		if err != nil {
 			return nil, err
@@ -156,7 +156,7 @@ func (k *KubernetesOperator) RegisterWatcher(target model.SubscribeTarget) (*CRD
 	return k.controllers[target.Kind], nil
 }
 
-func (k *KubernetesOperator) AddWatcher(target model.SubscribeTarget) error {
+func (k *KubernetesOperator) AddWatcher(target model.SubscribeTarget, isSecure bool) error {
 	k.controllerMux.Lock()
 	defer k.controllerMux.Unlock()
 
@@ -174,7 +174,7 @@ func (k *KubernetesOperator) AddWatcher(target model.SubscribeTarget) error {
 		if !crdSupports {
 			return errors.New("CRD not supported: " + target.Kind)
 		}
-		crdWatcher := NewCRDWatcher(k.crdManager, target.Kind, crdMetadata.Generator(), k.sendDataHandler)
+		crdWatcher := NewCRDWatcher(k.crdManager, target.Kind, crdMetadata.Generator(), k.sendDataHandler, isSecure)
 		err = crdWatcher.AddSubscribeTarget(target)
 		if err != nil {
 			return err

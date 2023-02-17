@@ -28,6 +28,6 @@ type ClientIdentifier string
 
 type OpenSergoTransportStream = trpb.OpenSergoUniversalTransportService_SubscribeConfigServer
 
-type SubscribeRequestHandler func(ClientIdentifier, *trpb.SubscribeRequest, OpenSergoTransportStream) error
+type SubscribeRequestHandler func(ClientIdentifier, *trpb.SubscribeRequest, OpenSergoTransportStream, bool) error
 
-type DataEntirePushHandler func(namespace, app, kind string, dataWithVersion *trpb.DataWithVersion, status *trpb.Status, respId string) error
+type DataEntirePushHandler func(namespace, app, kind string, dataWithVersion *trpb.DataWithVersion, status *trpb.Status, respId string, isSecure bool) error

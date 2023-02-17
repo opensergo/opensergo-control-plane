@@ -1,0 +1,26 @@
+apiVersion: traffic.opensergo.io/v1alpha1
+kind: TrafficRouter
+metadata:
+  name: service-provider
+  namespace: default
+  labels:
+    app: service-provider
+spec:
+  hosts:
+    - service-provider
+  http:
+    - match:
+        - headers:
+            x-mse-tag:
+              exact: v2
+      route:
+        - destination:
+            host: service-provider
+            subset: v2
+            fallback:
+              host: service-provider
+              subset: v1
+    - route:
+        - destination:
+            host: service-provider
+            subset: v1

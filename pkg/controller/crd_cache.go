@@ -80,7 +80,7 @@ func (c *CRDCache) SetByNamespaceApp(n model.NamespacedApp, object client.Object
 		}
 		return AddRule
 	} else {
-		for index, _ := range o.objects {
+		for index := range o.objects {
 			// Update object version
 			if o.objects[index].GetName() == object.GetName() {
 				o.objects[index] = object

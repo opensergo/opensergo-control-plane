@@ -157,12 +157,13 @@ func (c *ControlPlane) handleSubscribeRequest(clientIdentifier model.ClientIdent
 			}
 			continue
 		}
+    
 		if isSecure {
 			_ = c.secureServer.ConnectionManager().Add(request.Target.Namespace, request.Target.App, kind, transport.NewConnection(clientIdentifier, stream))
 		} else {
 			_ = c.server.ConnectionManager().Add(request.Target.Namespace, request.Target.App, kind, transport.NewConnection(clientIdentifier, stream))
 		}
-		// watcher缓存不空就发送
+    
 		rules, version := crdWatcher.GetRules(model.NamespacedApp{
 			Namespace: request.Target.Namespace,
 			App:       request.Target.App,

@@ -12,28 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package model
+syntax = "proto3";
 
-type LabelKV struct {
-	Key   string
-	Value string
-}
+package io.opensergo.proto.router.v1;
 
-type SubscribeKind = string
+option java_package = "io.opensergo.proto.router.v1";
+option java_outer_classname = "OpenSergoTransportProto";
+option java_multiple_files = true;
+option go_package = "github.com/opensergo/opensergo-control-plane/proto/router/v1";
 
-type SubscribeTarget struct {
-	Namespace string
-	// AppName represents the target app name. Fast path for "app" label.
-	AppName string
-	//Labels  []LabelKV
-	Kind SubscribeKind
-}
 
-func (st SubscribeTarget) NamespacedApp() NamespacedApp {
-	return NamespacedApp{st.Namespace, st.AppName}
-}
-
-type Instance struct {
-	ip          string
-	serviceType string
+message ClusterFallbackConfig_ClusterConfig {
+  string RoutingCluster = 1;
+  string FallbackCluster = 2;
 }

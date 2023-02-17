@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ "*" ]
+
+jobs:
+
+  lint:
+    name: Lint check
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v3
+
+      - name: Golangci Lint
+        # https://golangci-lint.run/
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: latest
+          args: "--out-${NO_FUTURE}format colored-line-number"
+
+  build:
+    name: Build and test - Go ${{ matrix.go_version }}
+    runs-on: ubuntu-latest
+    strategy:
+      # If you want to matrix build , you can append the following list.
+      matrix:
+        go_version:
+          - 1.18
+          - 1.19
+        os:
+          - ubuntu-latest
+
+    steps:
+
+      - name: Set up Go ${{ matrix.go_version }}
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ matrix.go_version }}
+        id: go
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v3
+
+      - name: Test
+        run: |
+          go test -v -race ./... -coverprofile=coverage.txt -covermode=atomic
+      - name: Coverage
+        run: bash <(curl -s https://codecov.io/bash)

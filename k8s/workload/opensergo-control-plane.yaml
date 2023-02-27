@@ -21,7 +21,6 @@ spec:
           ports:
             - name: grpc
               containerPort: 10246
-      serviceAccount: opensergo-control-plane
       serviceAccountName: opensergo-control-plane
 
 ---

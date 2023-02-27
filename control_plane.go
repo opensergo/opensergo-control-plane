@@ -107,15 +107,15 @@ func (c *ControlPlane) sendMessageToStream(stream model.OpenSergoTransportStream
 }
 
 func (c *ControlPlane) handleSubscribeRequest(clientIdentifier model.ClientIdentifier, request *trpb.SubscribeRequest, stream model.OpenSergoTransportStream) error {
-	//var labels []model.LabelKV
-	//if request.Target.Labels != nil {
+	// var labels []model.LabelKV
+	// if request.Target.Labels != nil {
 	//	for _, label := range request.Target.Labels {
 	//		labels = append(labels, model.LabelKV{
 	//			Key:   label.Key,
 	//			Value: label.Value,
 	//		})
 	//	}
-	//}
+	// }
 	for _, kind := range request.Target.Kinds {
 		crdWatcher, err := c.operator.RegisterWatcher(model.SubscribeTarget{
 			Namespace: request.Target.Namespace,

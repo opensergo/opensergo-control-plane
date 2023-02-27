@@ -192,7 +192,7 @@ func (k *KubernetesOperator) AddWatcher(target model.SubscribeTarget) error {
 		if err != nil {
 			return err
 		}
-		//_ = crdRunnable.Start(k.ctx)
+		// _ = crdRunnable.Start(k.ctx)
 		k.controllers[target.Kind] = crdWatcher
 
 	}

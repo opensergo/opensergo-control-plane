@@ -106,7 +106,7 @@ func (s *TransportServer) SubscribeConfig(stream trpb.OpenSergoUniversalTranspor
 			return nil
 		}
 		if err != nil {
-			//remove stream
+			// remove stream
 			_ = s.connectionManager.RemoveByIdentifier(clientIdentifier)
 			return err
 		}

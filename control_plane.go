@@ -25,7 +25,6 @@ import (
 	"github.com/opensergo/opensergo-control-plane/pkg/model"
 	trpb "github.com/opensergo/opensergo-control-plane/pkg/proto/transport/v1"
 	transport "github.com/opensergo/opensergo-control-plane/pkg/transport/grpc"
-	"github.com/pkg/errors"
 )
 
 type ControlPlane struct {
@@ -92,16 +91,20 @@ func (c *ControlPlane) Start() error {
 	return err
 }
 
-func (c *ControlPlane) sendMessage(namespace, app, kind string, dataWithVersion *trpb.DataWithVersion, status *trpb.Status, respId string, isSecure bool) error {
+func (c *ControlPlane) sendMessage(namespace, app, kind string, dataWithVersion *trpb.DataWithVersion, status *trpb.Status, respId string) error {
 	var connections []*transport.Connection
 	var exists bool
-	if isSecure {
-		connections, exists = c.secureServer.ConnectionManager().Get(namespace, app, kind)
-	} else {
-		connections, exists = c.server.ConnectionManager().Get(namespace, app, kind)
-	}
+	scs, exists := c.secureServer.ConnectionManager().Get(namespace, app, kind)
 	if !exists || connections == nil {
-		return errors.New("There is no connection for this kind")
+		log.Printf("There is no secure connection for app %s kind %s in ns %s", app, kind, namespace)
+	} else {
+		connections = append(connections, scs...)
+	}
+	cs, exists := c.server.ConnectionManager().Get(namespace, app, kind)
+	if !exists || connections == nil {
+		log.Printf("There is no connection for app %s kind %s in ns %s", app, kind, namespace)
+	} else {
+		connections = append(connections, cs...)
 	}
 	return c.innerSendMessage(namespace, app, kind, dataWithVersion, status, respId, connections)
 }
@@ -157,13 +160,13 @@ func (c *ControlPlane) handleSubscribeRequest(clientIdentifier model.ClientIdent
 			}
 			continue
 		}
-    
+
 		if isSecure {
 			_ = c.secureServer.ConnectionManager().Add(request.Target.Namespace, request.Target.App, kind, transport.NewConnection(clientIdentifier, stream))
 		} else {
 			_ = c.server.ConnectionManager().Add(request.Target.Namespace, request.Target.App, kind, transport.NewConnection(clientIdentifier, stream))
 		}
-    
+
 		rules, version := crdWatcher.GetRules(model.NamespacedApp{
 			Namespace: request.Target.Namespace,
 			App:       request.Target.App,

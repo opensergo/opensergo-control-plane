@@ -192,9 +192,8 @@ func (r *CRDWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		Details: nil,
 	}
 	dataWithVersion := &trpb.DataWithVersion{Data: rules, Version: version}
-	err := r.sendDataHandler(req.Namespace, app, r.kind, dataWithVersion, status, "", false)
-	errSecure := r.sendDataHandler(req.Namespace, app, r.kind, dataWithVersion, status, "", true)
-	if errSecure != nil && err != nil {
+	err := r.sendDataHandler(req.Namespace, app, r.kind, dataWithVersion, status, "")
+	if err != nil {
 		logger.Error(err, "Failed to send rules", "kind", r.kind)
 	}
 

@@ -25,7 +25,7 @@ type SubscribeTarget struct {
 	Namespace string
 	// AppName represents the target app name. Fast path for "app" label.
 	AppName string
-	//Labels  []LabelKV
+	// Labels  []LabelKV
 	Kind SubscribeKind
 }
 

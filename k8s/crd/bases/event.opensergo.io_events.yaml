@@ -1,0 +1,126 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.11.1
+  creationTimestamp: null
+  name: events.event.opensergo.io
+spec:
+  group: event.opensergo.io
+  names:
+    kind: Event
+    listKind: EventList
+    plural: events
+    singular: event
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Event is the Schema for the events API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: EventSpec defines the desired state of Event events should
+              follow the CloudEvents event data specification
+            properties:
+              components:
+                description: EventComponents components of event components
+                properties:
+                  channels:
+                    items:
+                      description: EventChannel Event pipeline corresponding message
+                        queue subject
+                      properties:
+                        id:
+                          type: string
+                        mqTopicName:
+                          type: string
+                        url:
+                          type: string
+                      required:
+                      - id
+                      - mqTopicName
+                      - url
+                      type: object
+                    type: array
+                  sources:
+                    items:
+                      description: EventSource event source
+                      properties:
+                        ref:
+                          description: EventProcessorRef logic processor
+                          properties:
+                            kind:
+                              description: Processor type such as Service represents
+                                service
+                              type: string
+                            name:
+                              description: The processor name, such as events-demo,
+                                represents the service named events-demo
+                              type: string
+                            uniqueID:
+                              type: string
+                          required:
+                          - kind
+                          - name
+                          - uniqueID
+                          type: object
+                      required:
+                      - ref
+                      type: object
+                    type: array
+                  triggers:
+                    items:
+                      description: EventTrigger event trigger
+                      properties:
+                        ref:
+                          description: EventProcessorRef logic processor
+                          properties:
+                            kind:
+                              description: Processor type such as Service represents
+                                service
+                              type: string
+                            name:
+                              description: The processor name, such as events-demo,
+                                represents the service named events-demo
+                              type: string
+                            uniqueID:
+                              type: string
+                          required:
+                          - kind
+                          - name
+                          - uniqueID
+                          type: object
+                      required:
+                      - ref
+                      type: object
+                    type: array
+                required:
+                - channels
+                - sources
+                - triggers
+                type: object
+            required:
+            - components
+            type: object
+          status:
+            description: EventStatus defines the observed state of Event
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

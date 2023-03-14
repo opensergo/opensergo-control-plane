@@ -23,7 +23,7 @@ const (
 type EventChannel struct {
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Required
-	ID string `json:"id"`
+	UniqueID string `json:"uniqueID"`
 
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Required

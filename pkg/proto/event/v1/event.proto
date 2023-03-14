@@ -11,15 +11,16 @@ import "fault_tolerance/v1/fault_tolerance.proto";
 
 // 事件管道 对应消息队列主题
 message EventChannel {
-  string id = 1; // 全局唯一id
+  string unique_id = 1; // 全局唯一id
   string url = 2; // 消息队列连接地址
   string mq_topic_name = 3; // channel对应的消息队列主题
 }
 
 // 处理器对象
 message EventProcessorRef {
-  string kind = 1; // 处理器类型 比如 Service 表示服务
-  string name = 2; // 处理器名称 比如 events-demo 表示服务名叫的 events-demo 的服务
+  string unique_id = 1; // 全局唯一id
+  string kind = 2; // 处理器类型 比如 Service 表示服务
+  string name = 3; // 处理器名称 比如 events-demo 表示服务名叫的 events-demo 的服务
 }
 
 // 事件源 生产者
@@ -94,7 +95,7 @@ message EventRuntimeStrategy {
   io.opensergo.proto.fault_tolerance.v1.FaultToleranceRule fault_tolerance_rule = 1;
   io.opensergo.proto.fault_tolerance.v1.RateLimitStrategy rate_limit_strategy = 2;
   io.opensergo.proto.fault_tolerance.v1.CircuitBreakerStrategy circuit_breaker_strategy = 3;
-  io.opensergo.proto.fault_tolerance.v1.ConcurrencyLimitStrateg concurrency_limit_strateg = 4;
+  io.opensergo.proto.fault_tolerance.v1.ConcurrencyLimitStrategy concurrency_limit_strateg = 4;
   RetryRule retry_rule = 5;
 }
 

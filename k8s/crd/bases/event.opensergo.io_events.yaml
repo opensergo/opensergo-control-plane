@@ -44,15 +44,15 @@ spec:
                       description: EventChannel Event pipeline corresponding message
                         queue subject
                       properties:
-                        id:
-                          type: string
                         mqTopicName:
+                          type: string
+                        uniqueID:
                           type: string
                         url:
                           type: string
                       required:
-                      - id
                       - mqTopicName
+                      - uniqueID
                       - url
                       type: object
                     type: array
@@ -113,8 +113,798 @@ spec:
                 - sources
                 - triggers
                 type: object
+              routerRules:
+                description: EventRouterRules event routing rules include source trigger
+                  filter
+                properties:
+                  routerRules:
+                    items:
+                      description: EventRouter event router
+                      properties:
+                        channelID:
+                          type: string
+                        filter:
+                          description: EventFilter filter before trigger
+                          properties:
+                            cesql:
+                              description: CloudEvents SQL Expression is based on
+                                cloudevents sql expression
+                              type: string
+                          type: object
+                        sourceID:
+                          type: string
+                        triggerID:
+                          type: string
+                      required:
+                      - channelID
+                      - filter
+                      - sourceID
+                      - triggerID
+                      type: object
+                    type: array
+                required:
+                - routerRules
+                type: object
+              strategies:
+                description: EventStrategies strategy for event
+                properties:
+                  defaultDeadLetterStrategy:
+                    description: DeadLetterStrategy dead letter message strategy for
+                      EventTrigger
+                    properties:
+                      enable:
+                        type: bool
+                      retryTriggerThreshold:
+                        description: Threshold value of retry triggering dead letter
+                        format: int64
+                        minimum: 1
+                        type: integer
+                      storeEventChannel:
+                        description: When enable_ Effective when block=true EventChannel
+                          indicates the channel storing dead letter production or
+                          consumption messages Persistence indicates use local or
+                          remote storage If StoreEventChannel and StorePersistence
+                          both have value, StoreEventChannel has higher priority.
+                        properties:
+                          mqTopicName:
+                            type: string
+                          uniqueID:
+                            type: string
+                          url:
+                            type: string
+                        required:
+                        - mqTopicName
+                        - uniqueID
+                        - url
+                        type: object
+                      storePersistence:
+                        description: Persistence detail of persistence
+                        properties:
+                          fullStrategy:
+                            type: int
+                          persistenceSize:
+                            format: int64
+                            type: int64
+                          persistenceType:
+                            type: int
+                        required:
+                        - fullStrategy
+                        - persistenceSize
+                        - persistenceType
+                        type: object
+                    required:
+                    - enable
+                    - retryTriggerThreshold
+                    - storeEventChannel
+                    - storePersistence
+                    type: object
+                  defaultSourceRuntimeStrategy:
+                    description: EventRuntimeStrategy runtime strategy for event source
+                      or trigger centralized setting FaultTolerance RateLimit CircuitBreaker
+                    properties:
+                      circuitBreakerStrategy:
+                        description: CircuitBreakerStrategySpec defines the spec of
+                          CircuitBreakerStrategy.
+                        properties:
+                          errorConditions:
+                            type: object
+                          minRequestAmount:
+                            format: int32
+                            minimum: 1
+                            type: integer
+                          recoveryTimeout:
+                            pattern: ^[1-9]\d*(s|ms|m|min|minute|h|d)$
+                            type: string
+                          slowConditions:
+                            properties:
+                              maxAllowedRt:
+                                pattern: ^[1-9]\d*(s|ms|m|min|minute|h|d)$
+                                type: string
+                            required:
+                            - maxAllowedRt
+                            type: object
+                          statDuration:
+                            pattern: ^[1-9]\d*(s|ms|m|min|minute|h|d)$
+                            type: string
+                          strategy:
+                            enum:
+                            - SlowRequestRatio
+                            - ErrorRequestRatio
+                            type: string
+                          triggerRatio:
+                            pattern: ^([1-9]\d?|100|0)%$
+                            type: string
+                        required:
+                        - minRequestAmount
+                        - recoveryTimeout
+                        - statDuration
+                        - strategy
+                        - triggerRatio
+                        type: object
+                      concurrencyLimitStrategy:
+                        description: ConcurrencyLimitStrategySpec defines the spec
+                          of ConcurrencyLimitStrategy.
+                        properties:
+                          limitMode:
+                            enum:
+                            - Local
+                            - Global
+                            type: string
+                          maxConcurrency:
+                            format: int64
+                            minimum: 0
+                            type: integer
+                        required:
+                        - limitMode
+                        - maxConcurrency
+                        type: object
+                      faultToleranceRule:
+                        description: FaultToleranceRuleSpec defines the spec of FaultToleranceRule.
+                        properties:
+                          strategies:
+                            items:
+                              properties:
+                                kind:
+                                  enum:
+                                  - RateLimitStrategy
+                                  - ConcurrencyLimitStrategy
+                                  minLength: 1
+                                  type: string
+                                name:
+                                  minLength: 1
+                                  type: string
+                              required:
+                              - kind
+                              - name
+                              type: object
+                            type: array
+                          targets:
+                            items:
+                              properties:
+                                targetResourceName:
+                                  maxLength: 1024
+                                  minLength: 1
+                                  type: string
+                              required:
+                              - targetResourceName
+                              type: object
+                            type: array
+                        required:
+                        - strategies
+                        - targets
+                        type: object
+                      rateLimitStrategy:
+                        description: RateLimitStrategySpec defines the spec of RateLimitStrategy.
+                        properties:
+                          limitMode:
+                            enum:
+                            - Local
+                            - Global
+                            type: string
+                          metricType:
+                            enum:
+                            - RequestAmount
+                            type: string
+                          statDurationSeconds:
+                            format: int32
+                            minimum: 1
+                            type: integer
+                          threshold:
+                            format: int64
+                            minimum: 0
+                            type: integer
+                        required:
+                        - limitMode
+                        - metricType
+                        - statDurationSeconds
+                        - threshold
+                        type: object
+                      retryRule:
+                        description: RetryRule rule of retry
+                        properties:
+                          backOffDelay:
+                            description: The delay between retries uses the string
+                              of the time period specified in the ISO-8601 rule for
+                              example, P6S represents the duration of 6s
+                            type: string
+                          backOffPolicyType:
+                            type: int
+                          retryMax:
+                            format: int64
+                            minimum: 1
+                            type: integer
+                        required:
+                        - backOffDelay
+                        - backOffPolicyType
+                        - retryMax
+                        type: object
+                    required:
+                    - circuitBreakerStrategy
+                    - concurrencyLimitStrategy
+                    - faultToleranceRule
+                    - rateLimitStrategy
+                    - retryRule
+                    type: object
+                  defaultTriggerRuntimeStrategy:
+                    description: EventRuntimeStrategy runtime strategy for event source
+                      or trigger centralized setting FaultTolerance RateLimit CircuitBreaker
+                    properties:
+                      circuitBreakerStrategy:
+                        description: CircuitBreakerStrategySpec defines the spec of
+                          CircuitBreakerStrategy.
+                        properties:
+                          errorConditions:
+                            type: object
+                          minRequestAmount:
+                            format: int32
+                            minimum: 1
+                            type: integer
+                          recoveryTimeout:
+                            pattern: ^[1-9]\d*(s|ms|m|min|minute|h|d)$
+                            type: string
+                          slowConditions:
+                            properties:
+                              maxAllowedRt:
+                                pattern: ^[1-9]\d*(s|ms|m|min|minute|h|d)$
+                                type: string
+                            required:
+                            - maxAllowedRt
+                            type: object
+                          statDuration:
+                            pattern: ^[1-9]\d*(s|ms|m|min|minute|h|d)$
+                            type: string
+                          strategy:
+                            enum:
+                            - SlowRequestRatio
+                            - ErrorRequestRatio
+                            type: string
+                          triggerRatio:
+                            pattern: ^([1-9]\d?|100|0)%$
+                            type: string
+                        required:
+                        - minRequestAmount
+                        - recoveryTimeout
+                        - statDuration
+                        - strategy
+                        - triggerRatio
+                        type: object
+                      concurrencyLimitStrategy:
+                        description: ConcurrencyLimitStrategySpec defines the spec
+                          of ConcurrencyLimitStrategy.
+                        properties:
+                          limitMode:
+                            enum:
+                            - Local
+                            - Global
+                            type: string
+                          maxConcurrency:
+                            format: int64
+                            minimum: 0
+                            type: integer
+                        required:
+                        - limitMode
+                        - maxConcurrency
+                        type: object
+                      faultToleranceRule:
+                        description: FaultToleranceRuleSpec defines the spec of FaultToleranceRule.
+                        properties:
+                          strategies:
+                            items:
+                              properties:
+                                kind:
+                                  enum:
+                                  - RateLimitStrategy
+                                  - ConcurrencyLimitStrategy
+                                  minLength: 1
+                                  type: string
+                                name:
+                                  minLength: 1
+                                  type: string
+                              required:
+                              - kind
+                              - name
+                              type: object
+                            type: array
+                          targets:
+                            items:
+                              properties:
+                                targetResourceName:
+                                  maxLength: 1024
+                                  minLength: 1
+                                  type: string
+                              required:
+                              - targetResourceName
+                              type: object
+                            type: array
+                        required:
+                        - strategies
+                        - targets
+                        type: object
+                      rateLimitStrategy:
+                        description: RateLimitStrategySpec defines the spec of RateLimitStrategy.
+                        properties:
+                          limitMode:
+                            enum:
+                            - Local
+                            - Global
+                            type: string
+                          metricType:
+                            enum:
+                            - RequestAmount
+                            type: string
+                          statDurationSeconds:
+                            format: int32
+                            minimum: 1
+                            type: integer
+                          threshold:
+                            format: int64
+                            minimum: 0
+                            type: integer
+                        required:
+                        - limitMode
+                        - metricType
+                        - statDurationSeconds
+                        - threshold
+                        type: object
+                      retryRule:
+                        description: RetryRule rule of retry
+                        properties:
+                          backOffDelay:
+                            description: The delay between retries uses the string
+                              of the time period specified in the ISO-8601 rule for
+                              example, P6S represents the duration of 6s
+                            type: string
+                          backOffPolicyType:
+                            type: int
+                          retryMax:
+                            format: int64
+                            minimum: 1
+                            type: integer
+                        required:
+                        - backOffDelay
+                        - backOffPolicyType
+                        - retryMax
+                        type: object
+                    required:
+                    - circuitBreakerStrategy
+                    - concurrencyLimitStrategy
+                    - faultToleranceRule
+                    - rateLimitStrategy
+                    - retryRule
+                    type: object
+                  sourceStrategies:
+                    items:
+                      description: EventSourceStrategy strategy for event source producer
+                      properties:
+                        asyncSend:
+                          type: bool
+                        eventSourceID:
+                          type: string
+                        faultTolerantStorage:
+                          description: Persistence detail of persistence
+                          properties:
+                            fullStrategy:
+                              type: int
+                            persistenceSize:
+                              format: int64
+                              type: int64
+                            persistenceType:
+                              type: int
+                          required:
+                          - fullStrategy
+                          - persistenceSize
+                          - persistenceType
+                          type: object
+                        runtimeStrategy:
+                          description: EventRuntimeStrategy runtime strategy for event
+                            source or trigger centralized setting FaultTolerance RateLimit
+                            CircuitBreaker
+                          properties:
+                            circuitBreakerStrategy:
+                              description: CircuitBreakerStrategySpec defines the
+                                spec of CircuitBreakerStrategy.
+                              properties:
+                                errorConditions:
+                                  type: object
+                                minRequestAmount:
+                                  format: int32
+                                  minimum: 1
+                                  type: integer
+                                recoveryTimeout:
+                                  pattern: ^[1-9]\d*(s|ms|m|min|minute|h|d)$
+                                  type: string
+                                slowConditions:
+                                  properties:
+                                    maxAllowedRt:
+                                      pattern: ^[1-9]\d*(s|ms|m|min|minute|h|d)$
+                                      type: string
+                                  required:
+                                  - maxAllowedRt
+                                  type: object
+                                statDuration:
+                                  pattern: ^[1-9]\d*(s|ms|m|min|minute|h|d)$
+                                  type: string
+                                strategy:
+                                  enum:
+                                  - SlowRequestRatio
+                                  - ErrorRequestRatio
+                                  type: string
+                                triggerRatio:
+                                  pattern: ^([1-9]\d?|100|0)%$
+                                  type: string
+                              required:
+                              - minRequestAmount
+                              - recoveryTimeout
+                              - statDuration
+                              - strategy
+                              - triggerRatio
+                              type: object
+                            concurrencyLimitStrategy:
+                              description: ConcurrencyLimitStrategySpec defines the
+                                spec of ConcurrencyLimitStrategy.
+                              properties:
+                                limitMode:
+                                  enum:
+                                  - Local
+                                  - Global
+                                  type: string
+                                maxConcurrency:
+                                  format: int64
+                                  minimum: 0
+                                  type: integer
+                              required:
+                              - limitMode
+                              - maxConcurrency
+                              type: object
+                            faultToleranceRule:
+                              description: FaultToleranceRuleSpec defines the spec
+                                of FaultToleranceRule.
+                              properties:
+                                strategies:
+                                  items:
+                                    properties:
+                                      kind:
+                                        enum:
+                                        - RateLimitStrategy
+                                        - ConcurrencyLimitStrategy
+                                        minLength: 1
+                                        type: string
+                                      name:
+                                        minLength: 1
+                                        type: string
+                                    required:
+                                    - kind
+                                    - name
+                                    type: object
+                                  type: array
+                                targets:
+                                  items:
+                                    properties:
+                                      targetResourceName:
+                                        maxLength: 1024
+                                        minLength: 1
+                                        type: string
+                                    required:
+                                    - targetResourceName
+                                    type: object
+                                  type: array
+                              required:
+                              - strategies
+                              - targets
+                              type: object
+                            rateLimitStrategy:
+                              description: RateLimitStrategySpec defines the spec
+                                of RateLimitStrategy.
+                              properties:
+                                limitMode:
+                                  enum:
+                                  - Local
+                                  - Global
+                                  type: string
+                                metricType:
+                                  enum:
+                                  - RequestAmount
+                                  type: string
+                                statDurationSeconds:
+                                  format: int32
+                                  minimum: 1
+                                  type: integer
+                                threshold:
+                                  format: int64
+                                  minimum: 0
+                                  type: integer
+                              required:
+                              - limitMode
+                              - metricType
+                              - statDurationSeconds
+                              - threshold
+                              type: object
+                            retryRule:
+                              description: RetryRule rule of retry
+                              properties:
+                                backOffDelay:
+                                  description: The delay between retries uses the
+                                    string of the time period specified in the ISO-8601
+                                    rule for example, P6S represents the duration
+                                    of 6s
+                                  type: string
+                                backOffPolicyType:
+                                  type: int
+                                retryMax:
+                                  format: int64
+                                  minimum: 1
+                                  type: integer
+                              required:
+                              - backOffDelay
+                              - backOffPolicyType
+                              - retryMax
+                              type: object
+                          required:
+                          - circuitBreakerStrategy
+                          - concurrencyLimitStrategy
+                          - faultToleranceRule
+                          - rateLimitStrategy
+                          - retryRule
+                          type: object
+                      required:
+                      - eventSourceID
+                      - faultTolerantStorage
+                      - runtimeStrategy
+                      type: object
+                    type: array
+                  triggerStrategies:
+                    items:
+                      description: EventTriggerStrategy strategy for event trigger
+                        or consumer
+                      properties:
+                        deadLetterStrategy:
+                          description: DeadLetterStrategy dead letter message strategy
+                            for EventTrigger
+                          properties:
+                            enable:
+                              type: bool
+                            retryTriggerThreshold:
+                              description: Threshold value of retry triggering dead
+                                letter
+                              format: int64
+                              minimum: 1
+                              type: integer
+                            storeEventChannel:
+                              description: When enable_ Effective when block=true
+                                EventChannel indicates the channel storing dead letter
+                                production or consumption messages Persistence indicates
+                                use local or remote storage If StoreEventChannel and
+                                StorePersistence both have value, StoreEventChannel
+                                has higher priority.
+                              properties:
+                                mqTopicName:
+                                  type: string
+                                uniqueID:
+                                  type: string
+                                url:
+                                  type: string
+                              required:
+                              - mqTopicName
+                              - uniqueID
+                              - url
+                              type: object
+                            storePersistence:
+                              description: Persistence detail of persistence
+                              properties:
+                                fullStrategy:
+                                  type: int
+                                persistenceSize:
+                                  format: int64
+                                  type: int64
+                                persistenceType:
+                                  type: int
+                              required:
+                              - fullStrategy
+                              - persistenceSize
+                              - persistenceType
+                              type: object
+                          required:
+                          - enable
+                          - retryTriggerThreshold
+                          - storeEventChannel
+                          - storePersistence
+                          type: object
+                        enableIdempotence:
+                          type: bool
+                        eventTriggerID:
+                          type: string
+                        receiveBufferSize:
+                          format: int64
+                          type: int64
+                        runtimeStrategy:
+                          description: EventRuntimeStrategy runtime strategy for event
+                            source or trigger centralized setting FaultTolerance RateLimit
+                            CircuitBreaker
+                          properties:
+                            circuitBreakerStrategy:
+                              description: CircuitBreakerStrategySpec defines the
+                                spec of CircuitBreakerStrategy.
+                              properties:
+                                errorConditions:
+                                  type: object
+                                minRequestAmount:
+                                  format: int32
+                                  minimum: 1
+                                  type: integer
+                                recoveryTimeout:
+                                  pattern: ^[1-9]\d*(s|ms|m|min|minute|h|d)$
+                                  type: string
+                                slowConditions:
+                                  properties:
+                                    maxAllowedRt:
+                                      pattern: ^[1-9]\d*(s|ms|m|min|minute|h|d)$
+                                      type: string
+                                  required:
+                                  - maxAllowedRt
+                                  type: object
+                                statDuration:
+                                  pattern: ^[1-9]\d*(s|ms|m|min|minute|h|d)$
+                                  type: string
+                                strategy:
+                                  enum:
+                                  - SlowRequestRatio
+                                  - ErrorRequestRatio
+                                  type: string
+                                triggerRatio:
+                                  pattern: ^([1-9]\d?|100|0)%$
+                                  type: string
+                              required:
+                              - minRequestAmount
+                              - recoveryTimeout
+                              - statDuration
+                              - strategy
+                              - triggerRatio
+                              type: object
+                            concurrencyLimitStrategy:
+                              description: ConcurrencyLimitStrategySpec defines the
+                                spec of ConcurrencyLimitStrategy.
+                              properties:
+                                limitMode:
+                                  enum:
+                                  - Local
+                                  - Global
+                                  type: string
+                                maxConcurrency:
+                                  format: int64
+                                  minimum: 0
+                                  type: integer
+                              required:
+                              - limitMode
+                              - maxConcurrency
+                              type: object
+                            faultToleranceRule:
+                              description: FaultToleranceRuleSpec defines the spec
+                                of FaultToleranceRule.
+                              properties:
+                                strategies:
+                                  items:
+                                    properties:
+                                      kind:
+                                        enum:
+                                        - RateLimitStrategy
+                                        - ConcurrencyLimitStrategy
+                                        minLength: 1
+                                        type: string
+                                      name:
+                                        minLength: 1
+                                        type: string
+                                    required:
+                                    - kind
+                                    - name
+                                    type: object
+                                  type: array
+                                targets:
+                                  items:
+                                    properties:
+                                      targetResourceName:
+                                        maxLength: 1024
+                                        minLength: 1
+                                        type: string
+                                    required:
+                                    - targetResourceName
+                                    type: object
+                                  type: array
+                              required:
+                              - strategies
+                              - targets
+                              type: object
+                            rateLimitStrategy:
+                              description: RateLimitStrategySpec defines the spec
+                                of RateLimitStrategy.
+                              properties:
+                                limitMode:
+                                  enum:
+                                  - Local
+                                  - Global
+                                  type: string
+                                metricType:
+                                  enum:
+                                  - RequestAmount
+                                  type: string
+                                statDurationSeconds:
+                                  format: int32
+                                  minimum: 1
+                                  type: integer
+                                threshold:
+                                  format: int64
+                                  minimum: 0
+                                  type: integer
+                              required:
+                              - limitMode
+                              - metricType
+                              - statDurationSeconds
+                              - threshold
+                              type: object
+                            retryRule:
+                              description: RetryRule rule of retry
+                              properties:
+                                backOffDelay:
+                                  description: The delay between retries uses the
+                                    string of the time period specified in the ISO-8601
+                                    rule for example, P6S represents the duration
+                                    of 6s
+                                  type: string
+                                backOffPolicyType:
+                                  type: int
+                                retryMax:
+                                  format: int64
+                                  minimum: 1
+                                  type: integer
+                              required:
+                              - backOffDelay
+                              - backOffPolicyType
+                              - retryMax
+                              type: object
+                          required:
+                          - circuitBreakerStrategy
+                          - concurrencyLimitStrategy
+                          - faultToleranceRule
+                          - rateLimitStrategy
+                          - retryRule
+                          type: object
+                      required:
+                      - deadLetterStrategy
+                      - eventTriggerID
+                      - receiveBufferSize
+                      - runtimeStrategy
+                      type: object
+                    type: array
+                required:
+                - defaultDeadLetterStrategy
+                - defaultSourceRuntimeStrategy
+                - defaultTriggerRuntimeStrategy
+                - sourceStrategies
+                - triggerStrategies
+                type: object
             required:
             - components
+            - routerRules
+            - strategies
             type: object
           status:
             description: EventStatus defines the observed state of Event

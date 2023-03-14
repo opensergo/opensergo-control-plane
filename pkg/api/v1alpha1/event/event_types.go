@@ -29,9 +29,9 @@ type EventSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	Components EventComponents `json:"components"`
-	// Strategies  EventStrategies  `json:"strategies"`
-	//RouterRules EventRouterRules `json:"routerRules"`
+	Components  EventComponents  `json:"components"`
+	Strategies  EventStrategies  `json:"strategies"`
+	RouterRules EventRouterRules `json:"routerRules"`
 }
 
 // EventStatus defines the observed state of Event

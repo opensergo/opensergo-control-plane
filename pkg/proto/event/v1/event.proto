@@ -61,8 +61,9 @@ message Persistence {
   }
 
   PersistenceType persistence_type = 1;
-  int64 persistence_size = 2; // 存储大小
-  FullStrategy full_strategy = 3;
+  PersistenceAddress persistence_address = 2;
+  int64 persistence_size = 3; // 存储大小
+  FullStrategy full_strategy = 4;
 }
 
 // 重试规则
@@ -144,7 +145,7 @@ message EventRouterRules {
 // 事件规则 事件需遵循 CloudEvents 事件数据规范
 message Event {
   EventComponents components = 1; // 事件组件
-  EventStrategies strategy = 2; // 事件策略
+  EventStrategies strategies = 2; // 事件策略
   EventRouterRules router_rules = 3; // 事件路由规则
 }
 

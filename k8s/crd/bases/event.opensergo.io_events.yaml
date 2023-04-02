@@ -153,7 +153,7 @@ spec:
                       EventTrigger
                     properties:
                       enable:
-                        type: bool
+                        type: boolean
                       retryTriggerThreshold:
                         description: Threshold value of retry triggering dead letter
                         format: int64
@@ -181,14 +181,26 @@ spec:
                         description: Persistence detail of persistence
                         properties:
                           fullStrategy:
-                            type: int
+                            type: integer
+                          persistenceAddress:
+                            description: PersistenceAddress address of persistence
+                            properties:
+                              address:
+                                description: The storage address is determined according
+                                  to the PersistenceType For example, local file directory/usr/local/data
+                                  remote file system address xxx. xxx. xxx. xxx
+                                type: string
+                            required:
+                            - address
+                            type: object
                           persistenceSize:
                             format: int64
-                            type: int64
+                            type: integer
                           persistenceType:
-                            type: int
+                            type: integer
                         required:
                         - fullStrategy
+                        - persistenceAddress
                         - persistenceSize
                         - persistenceType
                         type: object
@@ -328,7 +340,7 @@ spec:
                               example, P6S represents the duration of 6s
                             type: string
                           backOffPolicyType:
-                            type: int
+                            type: integer
                           retryMax:
                             format: int64
                             minimum: 1
@@ -475,7 +487,7 @@ spec:
                               example, P6S represents the duration of 6s
                             type: string
                           backOffPolicyType:
-                            type: int
+                            type: integer
                           retryMax:
                             format: int64
                             minimum: 1
@@ -497,21 +509,34 @@ spec:
                       description: EventSourceStrategy strategy for event source producer
                       properties:
                         asyncSend:
-                          type: bool
+                          type: boolean
                         eventSourceID:
                           type: string
                         faultTolerantStorage:
                           description: Persistence detail of persistence
                           properties:
                             fullStrategy:
-                              type: int
+                              type: integer
+                            persistenceAddress:
+                              description: PersistenceAddress address of persistence
+                              properties:
+                                address:
+                                  description: The storage address is determined according
+                                    to the PersistenceType For example, local file
+                                    directory/usr/local/data remote file system address
+                                    xxx. xxx. xxx. xxx
+                                  type: string
+                              required:
+                              - address
+                              type: object
                             persistenceSize:
                               format: int64
-                              type: int64
+                              type: integer
                             persistenceType:
-                              type: int
+                              type: integer
                           required:
                           - fullStrategy
+                          - persistenceAddress
                           - persistenceSize
                           - persistenceType
                           type: object
@@ -649,7 +674,7 @@ spec:
                                     of 6s
                                   type: string
                                 backOffPolicyType:
-                                  type: int
+                                  type: integer
                                 retryMax:
                                   format: int64
                                   minimum: 1
@@ -682,7 +707,7 @@ spec:
                             for EventTrigger
                           properties:
                             enable:
-                              type: bool
+                              type: boolean
                             retryTriggerThreshold:
                               description: Threshold value of retry triggering dead
                                 letter
@@ -712,14 +737,27 @@ spec:
                               description: Persistence detail of persistence
                               properties:
                                 fullStrategy:
-                                  type: int
+                                  type: integer
+                                persistenceAddress:
+                                  description: PersistenceAddress address of persistence
+                                  properties:
+                                    address:
+                                      description: The storage address is determined
+                                        according to the PersistenceType For example,
+                                        local file directory/usr/local/data remote
+                                        file system address xxx. xxx. xxx. xxx
+                                      type: string
+                                  required:
+                                  - address
+                                  type: object
                                 persistenceSize:
                                   format: int64
-                                  type: int64
+                                  type: integer
                                 persistenceType:
-                                  type: int
+                                  type: integer
                               required:
                               - fullStrategy
+                              - persistenceAddress
                               - persistenceSize
                               - persistenceType
                               type: object
@@ -730,12 +768,12 @@ spec:
                           - storePersistence
                           type: object
                         enableIdempotence:
-                          type: bool
+                          type: boolean
                         eventTriggerID:
                           type: string
                         receiveBufferSize:
                           format: int64
-                          type: int64
+                          type: integer
                         runtimeStrategy:
                           description: EventRuntimeStrategy runtime strategy for event
                             source or trigger centralized setting FaultTolerance RateLimit
@@ -870,7 +908,7 @@ spec:
                                     of 6s
                                   type: string
                                 backOffPolicyType:
-                                  type: int
+                                  type: integer
                                 retryMax:
                                   format: int64
                                   minimum: 1

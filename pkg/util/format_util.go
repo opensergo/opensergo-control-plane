@@ -15,6 +15,7 @@
 package util
 
 import (
+	eventpb "github.com/opensergo/opensergo-control-plane/pkg/proto/event/v1"
 	"strconv"
 	"strings"
 
@@ -73,4 +74,38 @@ func RatioStr2Float(ratioStr string) (float64, error) {
 		return num / 100.0, err
 	}
 	return strconv.ParseFloat(ratioStr, 64)
+}
+
+func Int2EventPersistenceType(persistType int) eventpb.Persistence_PersistenceType {
+	switch t := eventpb.Persistence_PersistenceType(persistType); t {
+	case
+		eventpb.Persistence_MEMORY,
+		eventpb.Persistence_LFS,
+		eventpb.Persistence_DFS:
+		return t
+	default:
+		return eventpb.Persistence_MEMORY
+	}
+}
+
+func Int2EventPersistenceFullStrategy(fullStrategy int) eventpb.Persistence_FullStrategy {
+	switch s := eventpb.Persistence_FullStrategy(fullStrategy); s {
+	case
+		eventpb.Persistence_BLOCK,
+		eventpb.Persistence_DROP:
+		return s
+	default:
+		return eventpb.Persistence_BLOCK
+	}
+}
+
+func Int2EventRetryBackOffPolicyType(policyType int) eventpb.RetryRule_BackoffPolicyType {
+	switch t := eventpb.RetryRule_BackoffPolicyType(policyType); t {
+	case
+		eventpb.RetryRule_BACK_OFF_POLICY_LINEAR,
+		eventpb.RetryRule_BACK_OFF_POLICY_EXPONENTIAL:
+		return t
+	default:
+		return eventpb.RetryRule_BACK_OFF_POLICY_LINEAR
+	}
 }

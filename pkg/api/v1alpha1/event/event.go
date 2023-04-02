@@ -70,6 +70,8 @@ type EventComponents struct {
 
 // PersistenceAddress address of persistence
 type PersistenceAddress struct {
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Required
 	// The storage address is determined according to the PersistenceType
 	// For example, local file directory/usr/local/data remote file system address xxx. xxx. xxx. xxx
 	Address string `json:"address"`
@@ -77,15 +79,17 @@ type PersistenceAddress struct {
 
 // Persistence detail of persistence
 type Persistence struct {
-	// +kubebuilder:validation:Type=int
+	// +kubebuilder:validation:Type=integer
 	// +kubebuilder:validation:Required
 	PersistenceType int `json:"persistenceType"`
 
-	// +kubebuilder:validation:Type=int64
+	PersistenceAddress PersistenceAddress `json:"persistenceAddress"`
+
+	// +kubebuilder:validation:Type=integer
 	// +kubebuilder:validation:Required
 	PersistenceSize int64 `json:"persistenceSize"`
 
-	// +kubebuilder:validation:Type=int
+	// +kubebuilder:validation:Type=integer
 	// +kubebuilder:validation:Required
 	FullStrategy int `json:"fullStrategy"`
 }
@@ -104,14 +108,14 @@ type RetryRule struct {
 	// for example, P6S represents the duration of 6s
 	BackOffDelay string `json:"backOffDelay"`
 
-	// +kubebuilder:validation:Type=int
+	// +kubebuilder:validation:Type=integer
 	// +kubebuilder:validation:Required
 	BackOffPolicyType int `json:"backOffPolicyType"`
 }
 
 // DeadLetterStrategy dead letter message strategy for EventTrigger
 type DeadLetterStrategy struct {
-	// +kubebuilder:validation:Type=bool
+	// +kubebuilder:validation:Type=boolean
 	// +kubebuilder:validation:Required
 	Enable bool `json:"enable"`
 
@@ -147,7 +151,7 @@ type EventSourceStrategy struct {
 	// +kubebuilder:validation:Required
 	EventSourceID string `json:"eventSourceID"`
 
-	// +kubebuilder:validation:Type=bool
+	// +kubebuilder:validation:Type=boolean
 	// +kubebuilder:validation:Optional
 	AsyncSend bool `json:"asyncSend"`
 
@@ -162,11 +166,11 @@ type EventTriggerStrategy struct {
 	// +kubebuilder:validation:Required
 	EventTriggerID string `json:"eventTriggerID"`
 
-	// +kubebuilder:validation:Type=int64
+	// +kubebuilder:validation:Type=integer
 	// +kubebuilder:validation:Required
 	ReceiveBufferSize int64 `json:"receiveBufferSize"`
 
-	// +kubebuilder:validation:Type=bool
+	// +kubebuilder:validation:Type=boolean
 	// +kubebuilder:validation:Optional
 	EnableIdempotence bool `json:"enableIdempotence"`
 

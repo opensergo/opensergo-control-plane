@@ -5,6 +5,7 @@ import (
 	crdv1alpha1event "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/event"
 	v1 "github.com/opensergo/opensergo-control-plane/pkg/proto/event/v1"
 	"github.com/opensergo/opensergo-control-plane/pkg/util"
+	"reflect"
 )
 
 // EventConvertor transform crd to pb
@@ -85,31 +86,8 @@ func (ec *EventConvertor) buildEventStrategies(crdStrategies crdv1alpha1event.Ev
 				PersistenceSize: ss.FaultTolerantStorage.PersistenceSize,
 				FullStrategy:    util.Int2EventPersistenceFullStrategy(ss.FaultTolerantStorage.FullStrategy),
 			},
-			RuntimeStrategy: &v1.EventRuntimeStrategy{
-				FaultToleranceRule: ec.crdWatcher.translateFTRCrdToProto(
-					&v1alpha1.FaultToleranceRule{
-						Spec: ss.RuntimeStrategy.FaultToleranceRule,
-					}),
-				RateLimitStrategy: ec.crdWatcher.translateRLSCrdToProto(
-					&v1alpha1.RateLimitStrategy{
-						Spec: ss.RuntimeStrategy.RateLimitStrategy,
-					}),
-				CircuitBreakerStrategy: ec.crdWatcher.translateCBSCrdToProto(
-					&v1alpha1.CircuitBreakerStrategy{
-						Spec: ss.RuntimeStrategy.CircuitBreakerStrategy,
-					}),
-				ConcurrencyLimitStrateg: ec.crdWatcher.translateCLSCrdToProto(
-					&v1alpha1.ConcurrencyLimitStrategy{
-						Spec: ss.RuntimeStrategy.ConcurrencyLimitStrategy,
-					}),
-				RetryRule: &v1.RetryRule{
-					RetryMax:     ss.RuntimeStrategy.RetryRule.RetryMax,
-					BackOffDelay: ss.RuntimeStrategy.RetryRule.BackOffDelay,
-					BackOffPolicyType: util.Int2EventRetryBackOffPolicyType(
-						ss.RuntimeStrategy.RetryRule.BackOffPolicyType,
-					),
-				},
-			},
+			RuntimeStrategy: ec.buildRuntimeStrategies(
+				ss.RuntimeStrategy, crdStrategies.DefaultSourceRuntimeStrategy),
 		}
 		sourceStrategies = append(sourceStrategies, s)
 	}
@@ -118,63 +96,10 @@ func (ec *EventConvertor) buildEventStrategies(crdStrategies crdv1alpha1event.Ev
 			EventTriggerId:    ts.EventTriggerID,
 			ReceiveBufferSize: ts.ReceiveBufferSize,
 			EnableIdempotence: ts.EnableIdempotence,
-			RuntimeStrategy: &v1.EventRuntimeStrategy{
-				FaultToleranceRule: ec.crdWatcher.translateFTRCrdToProto(
-					&v1alpha1.FaultToleranceRule{
-						Spec: ts.RuntimeStrategy.FaultToleranceRule,
-					}),
-				RateLimitStrategy: ec.crdWatcher.translateRLSCrdToProto(
-					&v1alpha1.RateLimitStrategy{
-						Spec: ts.RuntimeStrategy.RateLimitStrategy,
-					}),
-				CircuitBreakerStrategy: ec.crdWatcher.translateCBSCrdToProto(
-					&v1alpha1.CircuitBreakerStrategy{
-						Spec: ts.RuntimeStrategy.CircuitBreakerStrategy,
-					}),
-				ConcurrencyLimitStrateg: ec.crdWatcher.translateCLSCrdToProto(
-					&v1alpha1.ConcurrencyLimitStrategy{
-						Spec: ts.RuntimeStrategy.ConcurrencyLimitStrategy,
-					}),
-				RetryRule: &v1.RetryRule{
-					RetryMax:     ts.RuntimeStrategy.RetryRule.RetryMax,
-					BackOffDelay: ts.RuntimeStrategy.RetryRule.BackOffDelay,
-					BackOffPolicyType: util.Int2EventRetryBackOffPolicyType(
-						ts.RuntimeStrategy.RetryRule.BackOffPolicyType,
-					),
-				},
-			},
-			DeadLetterStrategy: &v1.DeadLetterStrategy{
-				Enable:                ts.DeadLetterStrategy.Enable,
-				RetryTriggerThreshold: ts.DeadLetterStrategy.RetryTriggerThreshold,
-				Store:                 nil,
-			},
-		}
-		// first use event channel if url or topic is empty then use persistence
-		ch := ts.DeadLetterStrategy.StoreEventChannel
-		if ch.URL != "" && ch.MQTopicName != "" {
-			s.DeadLetterStrategy.Store = &v1.DeadLetterStrategy_Channel{
-				Channel: &v1.EventChannel{
-					UniqueId:    ch.UniqueID,
-					Url:         ch.URL,
-					MqTopicName: ch.MQTopicName,
-				},
-			}
-			continue
-		}
-		persist := ts.DeadLetterStrategy.StorePersistence
-		if persist.PersistenceAddress.Address != "" {
-			s.DeadLetterStrategy.Store = &v1.DeadLetterStrategy_Persistence{
-				Persistence: &v1.Persistence{
-					PersistenceType: util.Int2EventPersistenceType(
-						persist.PersistenceType),
-					PersistenceAddress: &v1.Persistence_PersistenceAddress{
-						Address: persist.PersistenceAddress.Address,
-					},
-					PersistenceSize: persist.PersistenceSize,
-					FullStrategy: util.Int2EventPersistenceFullStrategy(
-						persist.FullStrategy),
-				},
-			}
+			RuntimeStrategy: ec.buildRuntimeStrategies(
+				ts.RuntimeStrategy, crdStrategies.DefaultTriggerRuntimeStrategy),
+			DeadLetterStrategy: ec.buildDeadLetterStrategy(
+				ts.DeadLetterStrategy, crdStrategies.DefaultDeadLetterStrategy),
 		}
 		triggerStrategies = append(triggerStrategies, s)
 	}
@@ -183,6 +108,110 @@ func (ec *EventConvertor) buildEventStrategies(crdStrategies crdv1alpha1event.Ev
 	strategies.TriggerStrategies = triggerStrategies
 
 	return strategies
+}
+
+func (ec *EventConvertor) buildRuntimeStrategies(
+	runtimeStrategy,
+	defaultStrategy crdv1alpha1event.EventRuntimeStrategy,
+) *v1.EventRuntimeStrategy {
+
+	var rs crdv1alpha1event.EventRuntimeStrategy
+	if reflect.DeepEqual(runtimeStrategy.FaultToleranceRule, v1alpha1.FaultToleranceRuleSpec{}) {
+		rs.FaultToleranceRule = defaultStrategy.FaultToleranceRule
+	}
+	if reflect.DeepEqual(runtimeStrategy.ConcurrencyLimitStrategy, v1alpha1.ConcurrencyLimitStrategySpec{}) {
+		rs.ConcurrencyLimitStrategy = defaultStrategy.ConcurrencyLimitStrategy
+	}
+	if reflect.DeepEqual(runtimeStrategy.RateLimitStrategy, v1alpha1.RateLimitStrategySpec{}) {
+		rs.RateLimitStrategy = defaultStrategy.RateLimitStrategy
+	}
+	if reflect.DeepEqual(runtimeStrategy.CircuitBreakerStrategy, v1alpha1.CircuitBreakerStrategySpec{}) {
+		rs.CircuitBreakerStrategy = defaultStrategy.CircuitBreakerStrategy
+	}
+	if reflect.DeepEqual(runtimeStrategy.RetryRule, crdv1alpha1event.RetryRule{}) {
+		rs.RetryRule = defaultStrategy.RetryRule
+	}
+
+	rsPB := &v1.EventRuntimeStrategy{
+		FaultToleranceRule: ec.crdWatcher.translateFTRCrdToProto(
+			&v1alpha1.FaultToleranceRule{
+				Spec: rs.FaultToleranceRule,
+			}),
+		RateLimitStrategy: ec.crdWatcher.translateRLSCrdToProto(
+			&v1alpha1.RateLimitStrategy{
+				Spec: rs.RateLimitStrategy,
+			}),
+		CircuitBreakerStrategy: ec.crdWatcher.translateCBSCrdToProto(
+			&v1alpha1.CircuitBreakerStrategy{
+				Spec: rs.CircuitBreakerStrategy,
+			}),
+		ConcurrencyLimitStrateg: ec.crdWatcher.translateCLSCrdToProto(
+			&v1alpha1.ConcurrencyLimitStrategy{
+				Spec: rs.ConcurrencyLimitStrategy,
+			}),
+		RetryRule: &v1.RetryRule{
+			RetryMax:     rs.RetryRule.RetryMax,
+			BackOffDelay: rs.RetryRule.BackOffDelay,
+			BackOffPolicyType: util.Int2EventRetryBackOffPolicyType(
+				rs.RetryRule.BackOffPolicyType,
+			),
+		},
+	}
+	return rsPB
+}
+
+func (ec *EventConvertor) buildDeadLetterStrategy(
+	deadLetterStrategy,
+	defaultStrategy crdv1alpha1event.DeadLetterStrategy) *v1.DeadLetterStrategy {
+
+	var dls crdv1alpha1event.DeadLetterStrategy
+	if reflect.DeepEqual(deadLetterStrategy.Enable, false) {
+		dls.Enable = defaultStrategy.Enable
+	}
+	if reflect.DeepEqual(deadLetterStrategy.RetryTriggerThreshold, int64(0)) {
+		dls.RetryTriggerThreshold = defaultStrategy.RetryTriggerThreshold
+	}
+	if reflect.DeepEqual(deadLetterStrategy.StoreEventChannel, crdv1alpha1event.EventChannel{}) {
+		dls.StoreEventChannel = defaultStrategy.StoreEventChannel
+	}
+	if reflect.DeepEqual(deadLetterStrategy.StorePersistence, crdv1alpha1event.Persistence{}) {
+		dls.StorePersistence = defaultStrategy.StorePersistence
+	}
+
+	dlsPB := &v1.DeadLetterStrategy{
+		Enable:                dls.Enable,
+		RetryTriggerThreshold: dls.RetryTriggerThreshold,
+		Store:                 nil,
+	}
+	// first use event channel if url or topic is empty then use persistence
+	ch := dls.StoreEventChannel
+	if ch.URL != "" && ch.MQTopicName != "" {
+		dlsPB.Store = &v1.DeadLetterStrategy_Channel{
+			Channel: &v1.EventChannel{
+				UniqueId:    ch.UniqueID,
+				Url:         ch.URL,
+				MqTopicName: ch.MQTopicName,
+			},
+		}
+		return dlsPB
+	}
+	// following is that use persistence
+	persist := dls.StorePersistence
+	if persist.PersistenceAddress.Address != "" {
+		dlsPB.Store = &v1.DeadLetterStrategy_Persistence{
+			Persistence: &v1.Persistence{
+				PersistenceType: util.Int2EventPersistenceType(
+					persist.PersistenceType),
+				PersistenceAddress: &v1.Persistence_PersistenceAddress{
+					Address: persist.PersistenceAddress.Address,
+				},
+				PersistenceSize: persist.PersistenceSize,
+				FullStrategy: util.Int2EventPersistenceFullStrategy(
+					persist.FullStrategy),
+			},
+		}
+	}
+	return dlsPB
 }
 
 func (ec *EventConvertor) buildEventRouterRules(crdRouterRules crdv1alpha1event.EventRouterRules) *v1.EventRouterRules {

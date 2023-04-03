@@ -22,6 +22,7 @@ import (
 	"github.com/alibaba/sentinel-golang/logging"
 	"github.com/alibaba/sentinel-golang/util"
 	crdv1alpha1 "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1"
+	v1alpha1event "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/event"
 	crdv1alpha1traffic "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/traffic"
 	"github.com/opensergo/opensergo-control-plane/pkg/model"
 	"github.com/pkg/errors"
@@ -44,6 +45,8 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 
 	_ = crdv1alpha1traffic.AddToScheme(scheme)
+
+	_ = v1alpha1event.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 

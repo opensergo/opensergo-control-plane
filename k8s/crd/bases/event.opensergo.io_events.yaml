@@ -207,8 +207,6 @@ spec:
                     required:
                     - enable
                     - retryTriggerThreshold
-                    - storeEventChannel
-                    - storePersistence
                     type: object
                   defaultSourceRuntimeStrategy:
                     description: EventRuntimeStrategy runtime strategy for event source
@@ -694,7 +692,6 @@ spec:
                       required:
                       - eventSourceID
                       - faultTolerantStorage
-                      - runtimeStrategy
                       type: object
                     type: array
                   triggerStrategies:
@@ -764,8 +761,6 @@ spec:
                           required:
                           - enable
                           - retryTriggerThreshold
-                          - storeEventChannel
-                          - storePersistence
                           type: object
                         enableIdempotence:
                           type: boolean
@@ -926,10 +921,8 @@ spec:
                           - retryRule
                           type: object
                       required:
-                      - deadLetterStrategy
                       - eventTriggerID
                       - receiveBufferSize
-                      - runtimeStrategy
                       type: object
                     type: array
                 required:

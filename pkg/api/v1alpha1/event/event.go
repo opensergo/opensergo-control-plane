@@ -126,12 +126,14 @@ type DeadLetterStrategy struct {
 	// Threshold value of retry triggering dead letter
 	RetryTriggerThreshold int64 `json:"retryTriggerThreshold"`
 
+	// +kubebuilder:validation:Optional
 	// When enable_ Effective when block=true
 	// EventChannel indicates the channel storing dead letter production or consumption messages
 	// Persistence indicates use local or remote storage
 	// If StoreEventChannel and StorePersistence both have value, StoreEventChannel has higher priority.
 	StoreEventChannel EventChannel `json:"storeEventChannel"`
-	StorePersistence  Persistence  `json:"storePersistence"`
+	// +kubebuilder:validation:Optional
+	StorePersistence Persistence `json:"storePersistence"`
 }
 
 // EventRuntimeStrategy runtime strategy for event source or trigger
@@ -157,6 +159,7 @@ type EventSourceStrategy struct {
 
 	FaultTolerantStorage Persistence `json:"faultTolerantStorage"`
 
+	// +kubebuilder:validation:Optional
 	RuntimeStrategy EventRuntimeStrategy `json:"runtimeStrategy"`
 }
 
@@ -174,8 +177,9 @@ type EventTriggerStrategy struct {
 	// +kubebuilder:validation:Optional
 	EnableIdempotence bool `json:"enableIdempotence"`
 
+	// +kubebuilder:validation:Optional
 	RuntimeStrategy EventRuntimeStrategy `json:"runtimeStrategy"`
-
+	// +kubebuilder:validation:Optional
 	DeadLetterStrategy DeadLetterStrategy `json:"deadLetterStrategy"`
 }
 

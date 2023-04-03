@@ -1,0 +1,117 @@
+apiVersion: event.opensergo.io/v1alpha1
+kind: Event
+metadata:
+  labels:
+    app: event-example-app
+  name: event-sample
+spec:
+  components:
+    channels:
+      -
+        mqTopicName: test_topic
+        uniqueID: xxx-xxx-xxx-1
+        url: https://mq/topic
+    sources:
+      -
+        ref:
+          kind: rpc_service
+          name: test_source
+          uniqueID: service_source_test_1
+    triggers:
+      -
+        ref:
+          kind: rpc_service
+          name: test_trigger
+          uniqueID: service_trigger_test_1
+  routerRules:
+    routerRules:
+      -
+        channelID: xxx-xxx-xxx-1
+        filter:
+          cesql: select id > 0
+        sourceID: service_source_test_1
+        triggerID: service_trigger_test_1
+  strategies:
+    defaultDeadLetterStrategy:
+      enable: true
+      retryTriggerThreshold: 3
+      storeEventChannel:
+        mqTopicName: dl-test
+        uniqueID: xxx-xxx-xxx-dl-1
+        url: https://mq/topic
+#      storePersistence:
+#        fullStrategy: 0
+#        persistenceAddress:
+#          address:
+#        persistenceSize:
+#        persistenceType:
+    defaultSourceRuntimeStrategy:
+      circuitBreakerStrategy:
+        strategy: SlowRequestRatio
+        triggerRatio: '60%'
+        statDuration: '60s'
+        recoveryTimeout: '5s'
+        minRequestAmount: 5
+        slowConditions:
+          maxAllowedRt: '500ms'
+      concurrencyLimitStrategy:
+        maxConcurrency: 8
+        limitMode: 'Local'
+      faultToleranceRule:
+        targets:
+          - targetResourceName: 'GET:/fooc'
+        strategies:
+          - name: rate-limit-foo
+            kind: RateLimitStrategy
+      rateLimitStrategy:
+        metricType: RequestAmount
+        limitMode: Local
+        threshold: 3
+        statDurationSeconds: 5
+      retryRule:
+        backOffDelay: P6S
+        backOffPolicyType: 0
+        retryMax: 3
+    defaultTriggerRuntimeStrategy:
+      circuitBreakerStrategy:
+        strategy: SlowRequestRatio
+        triggerRatio: '60%'
+        statDuration: '60s'
+        recoveryTimeout: '5s'
+        minRequestAmount: 5
+        slowConditions:
+          maxAllowedRt: '500ms'
+      concurrencyLimitStrategy:
+        maxConcurrency: 8
+        limitMode: 'Local'
+      faultToleranceRule:
+        targets:
+          - targetResourceName: 'GET:/fooc'
+        strategies:
+          - name: rate-limit-foo
+            kind: RateLimitStrategy
+      rateLimitStrategy:
+        metricType: RequestAmount
+        limitMode: Local
+        threshold: 3
+        statDurationSeconds: 5
+      retryRule:
+        backOffDelay: P6S
+        backOffPolicyType: 0
+        retryMax: 3
+    sourceStrategies:
+      -
+        asyncSend: false
+        eventSourceID: service_source_test_1
+        faultTolerantStorage:
+          fullStrategy: 0
+          persistenceAddress:
+            address: tcp://ip
+          persistenceSize: 1024000
+          persistenceType: 0
+        # runtimeStrategy:
+    triggerStrategies:
+      -
+        eventTriggerID: service_trigger_test_1
+        receiveBufferSize: 102400
+        enableIdempotence: true

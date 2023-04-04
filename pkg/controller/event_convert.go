@@ -1,11 +1,12 @@
 package controller
 
 import (
+	"reflect"
+
 	"github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1"
 	crdv1alpha1event "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/event"
 	v1 "github.com/opensergo/opensergo-control-plane/pkg/proto/event/v1"
 	"github.com/opensergo/opensergo-control-plane/pkg/util"
-	"reflect"
 )
 
 // EventConvertor transform crd to pb

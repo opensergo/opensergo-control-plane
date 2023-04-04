@@ -15,10 +15,10 @@
 package util
 
 import (
-	eventpb "github.com/opensergo/opensergo-control-plane/pkg/proto/event/v1"
 	"strconv"
 	"strings"
 
+	eventpb "github.com/opensergo/opensergo-control-plane/pkg/proto/event/v1"
 	pb "github.com/opensergo/opensergo-control-plane/pkg/proto/fault_tolerance/v1"
 )
 

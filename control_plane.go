@@ -19,20 +19,23 @@ import (
 	"os"
 	"sync"
 
+	"github.com/alibaba/sentinel-golang/util"
+
 	"github.com/opensergo/opensergo-control-plane/pkg/controller"
 	"github.com/opensergo/opensergo-control-plane/pkg/model"
 	trpb "github.com/opensergo/opensergo-control-plane/pkg/proto/transport/v1"
 	transport "github.com/opensergo/opensergo-control-plane/pkg/transport/grpc"
-	"github.com/pkg/errors"
 )
 
 type ControlPlane struct {
-	operator *controller.KubernetesOperator
-	server   *transport.Server
+	operator     *controller.KubernetesOperator
+	server       *transport.Server
+	secureServer *transport.Server
 
 	protoDesc *trpb.ControlPlaneDesc
 
 	mux sync.RWMutex
+	ch  chan error
 }
 
 func NewControlPlane() (*ControlPlane, error) {
@@ -44,6 +47,8 @@ func NewControlPlane() (*ControlPlane, error) {
 	}
 
 	cp.server = transport.NewServer(uint32(10246), []model.SubscribeRequestHandler{cp.handleSubscribeRequest})
+	// On port 10248, it can use tls transport
+	cp.secureServer = transport.NewSecureServer(uint32(10248), []model.SubscribeRequestHandler{cp.handleSubscribeRequest})
 	cp.operator = operator
 
 	hostname, herr := os.Hostname()
@@ -62,20 +67,49 @@ func (c *ControlPlane) Start() error {
 	if err != nil {
 		return err
 	}
-	// Run the transport server
-	err = c.server.Run()
-	if err != nil {
-		return err
-	}
 
-	return nil
+	go util.RunWithRecover(func() {
+		// Run the transport server
+		log.Println("Starting grpc server on port 10246!")
+		err = c.server.Run()
+		if err != nil {
+			c.ch <- err
+			log.Fatal("Failed to run the grpc server")
+		}
+	})
+
+	go util.RunWithRecover(func() {
+		// Run the secure transport server
+		log.Println("Starting secure grpc server on port 10248!")
+		err = c.secureServer.Run()
+		if err != nil {
+			c.ch <- err
+			log.Fatal("Failed to run the secure grpc server")
+		}
+	})
+	err = <-c.ch
+	return err
 }
 
 func (c *ControlPlane) sendMessage(namespace, app, kind string, dataWithVersion *trpb.DataWithVersion, status *trpb.Status, respId string) error {
-	connections, exists := c.server.ConnectionManager().Get(namespace, app, kind)
+	var connections []*transport.Connection
+	var exists bool
+	scs, exists := c.secureServer.ConnectionManager().Get(namespace, app, kind)
 	if !exists || connections == nil {
-		return errors.New("There is no connection for this kind")
+		log.Printf("There is no secure connection for app %s kind %s in ns %s", app, kind, namespace)
+	} else {
+		connections = append(connections, scs...)
 	}
+	cs, exists := c.server.ConnectionManager().Get(namespace, app, kind)
+	if !exists || connections == nil {
+		log.Printf("There is no connection for app %s kind %s in ns %s", app, kind, namespace)
+	} else {
+		connections = append(connections, cs...)
+	}
+	return c.innerSendMessage(namespace, app, kind, dataWithVersion, status, respId, connections)
+}
+
+func (c *ControlPlane) innerSendMessage(namespace, app, kind string, dataWithVersion *trpb.DataWithVersion, status *trpb.Status, respId string, connections []*transport.Connection) error {
 	for _, connection := range connections {
 		if connection == nil || !connection.IsValid() {
 			// TODO: log.Debug
@@ -106,22 +140,13 @@ func (c *ControlPlane) sendMessageToStream(stream model.OpenSergoTransportStream
 	})
 }
 
-func (c *ControlPlane) handleSubscribeRequest(clientIdentifier model.ClientIdentifier, request *trpb.SubscribeRequest, stream model.OpenSergoTransportStream) error {
-	// var labels []model.LabelKV
-	// if request.Target.Labels != nil {
-	//	for _, label := range request.Target.Labels {
-	//		labels = append(labels, model.LabelKV{
-	//			Key:   label.Key,
-	//			Value: label.Value,
-	//		})
-	//	}
-	// }
+func (c *ControlPlane) handleSubscribeRequest(clientIdentifier model.ClientIdentifier, request *trpb.SubscribeRequest, stream model.OpenSergoTransportStream, isSecure bool) error {
 	for _, kind := range request.Target.Kinds {
 		crdWatcher, err := c.operator.RegisterWatcher(model.SubscribeTarget{
 			Namespace: request.Target.Namespace,
 			AppName:   request.Target.App,
 			Kind:      kind,
-		})
+		}, isSecure)
 		if err != nil {
 			status := &trpb.Status{
 				Code:    transport.RegisterWatcherError,
@@ -135,8 +160,13 @@ func (c *ControlPlane) handleSubscribeRequest(clientIdentifier model.ClientIdent
 			}
 			continue
 		}
-		_ = c.server.ConnectionManager().Add(request.Target.Namespace, request.Target.App, kind, transport.NewConnection(clientIdentifier, stream))
-		// send if the watcher cache is not empty
+
+		if isSecure {
+			_ = c.secureServer.ConnectionManager().Add(request.Target.Namespace, request.Target.App, kind, transport.NewConnection(clientIdentifier, stream))
+		} else {
+			_ = c.server.ConnectionManager().Add(request.Target.Namespace, request.Target.App, kind, transport.NewConnection(clientIdentifier, stream))
+		}
+
 		rules, version := crdWatcher.GetRules(model.NamespacedApp{
 			Namespace: request.Target.Namespace,
 			App:       request.Target.App,

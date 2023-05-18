@@ -15,16 +15,20 @@
 package grpc
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io"
 	"log"
 	"net"
+
+	"github.com/opensergo/opensergo-control-plane/pkg/cert"
 
 	"github.com/opensergo/opensergo-control-plane/pkg/model"
 	trpb "github.com/opensergo/opensergo-control-plane/pkg/proto/transport/v1"
 	"github.com/opensergo/opensergo-control-plane/pkg/util"
 	"go.uber.org/atomic"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 const (
@@ -42,10 +46,27 @@ type Server struct {
 	started *atomic.Bool
 }
 
+func NewSecureServer(port uint32, subscribeHandlers []model.SubscribeRequestHandler) *Server {
+	connectionManager := NewConnectionManager()
+	cfg := &tls.Config{
+		GetCertificate: cert.GetCertificate,
+		ClientAuth:     tls.VerifyClientCertIfGiven,
+		MinVersion:     tls.VersionTLS12,
+	}
+	tlsCreds := credentials.NewTLS(cfg)
+	return &Server{
+		transportServer:   newTransportServer(connectionManager, subscribeHandlers, true),
+		port:              port,
+		grpcServer:        grpc.NewServer(grpc.Creds(tlsCreds)),
+		started:           atomic.NewBool(false),
+		connectionManager: connectionManager,
+	}
+}
+
 func NewServer(port uint32, subscribeHandlers []model.SubscribeRequestHandler) *Server {
 	connectionManager := NewConnectionManager()
 	return &Server{
-		transportServer:   newTransportServer(connectionManager, subscribeHandlers),
+		transportServer:   newTransportServer(connectionManager, subscribeHandlers, false),
 		port:              port,
 		grpcServer:        grpc.NewServer(),
 		started:           atomic.NewBool(false),
@@ -84,6 +105,8 @@ type TransportServer struct {
 	connectionManager *ConnectionManager
 
 	subscribeHandlers []model.SubscribeRequestHandler
+	// whether the server use tls
+	isSecure bool
 }
 
 const (
@@ -144,7 +167,7 @@ func (s *TransportServer) SubscribeConfig(stream trpb.OpenSergoUniversalTranspor
 			}
 
 			for _, handler := range s.subscribeHandlers {
-				err = handler(clientIdentifier, recvData, stream)
+				err = handler(clientIdentifier, recvData, stream, s.isSecure)
 				if err != nil {
 					// TODO: handle error
 					log.Printf("Failed to handle SubscribeRequest, err=%s\n", err.Error())
@@ -155,9 +178,10 @@ func (s *TransportServer) SubscribeConfig(stream trpb.OpenSergoUniversalTranspor
 	}
 }
 
-func newTransportServer(connectionManager *ConnectionManager, subscribeHandlers []model.SubscribeRequestHandler) *TransportServer {
+func newTransportServer(connectionManager *ConnectionManager, subscribeHandlers []model.SubscribeRequestHandler, isSecure bool) *TransportServer {
 	return &TransportServer{
 		connectionManager: connectionManager,
 		subscribeHandlers: subscribeHandlers,
+		isSecure:          isSecure,
 	}
 }

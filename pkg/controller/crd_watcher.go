@@ -196,6 +196,7 @@ func (r *CRDWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if err != nil {
 		logger.Error(err, "Failed to send rules", "kind", r.kind)
 	}
+
 	return ctrl.Result{}, nil
 }
 

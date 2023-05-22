@@ -21,10 +21,13 @@ import (
 	"strconv"
 	"sync"
 
+	routev3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	"github.com/go-logr/logr"
 	crdv1alpha1 "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1"
+	crdv1alpha1event "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/event"
 	crdv1alpha1traffic "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/traffic"
 	"github.com/opensergo/opensergo-control-plane/pkg/model"
+	eventpb "github.com/opensergo/opensergo-control-plane/pkg/proto/event/v1"
 	pb "github.com/opensergo/opensergo-control-plane/pkg/proto/fault_tolerance/v1"
 	trpb "github.com/opensergo/opensergo-control-plane/pkg/proto/transport/v1"
 	"github.com/opensergo/opensergo-control-plane/pkg/util"
@@ -55,6 +58,9 @@ type CRDWatcher struct {
 
 	crdGenerator    func() client.Object
 	sendDataHandler model.DataEntirePushHandler
+
+	// eventConvertor convert event crd to pb
+	eventConvertor *EventConvertor
 
 	updateMux sync.RWMutex
 }
@@ -226,96 +232,25 @@ func (r *CRDWatcher) translateCrdToProto(object client.Object) (*anypb.Any, erro
 	switch r.kind {
 	case FaultToleranceRuleKind:
 		ftr := object.(*crdv1alpha1.FaultToleranceRule)
-		var targets []*pb.FaultToleranceRule_FaultToleranceRuleTargetRef
-		var strategies []*pb.FaultToleranceRule_FaultToleranceStrategyRef
-		if ftr != nil {
-			for _, target := range ftr.Spec.Targets {
-				targets = append(targets, &pb.FaultToleranceRule_FaultToleranceRuleTargetRef{TargetResourceName: target.TargetResourceName})
-			}
-			for _, strategy := range ftr.Spec.Strategies {
-				strategies = append(strategies, &pb.FaultToleranceRule_FaultToleranceStrategyRef{
-					Name: strategy.Name,
-					Kind: strategy.Kind,
-				})
-			}
-		}
-		rule = &pb.FaultToleranceRule{
-			Targets:    targets,
-			Strategies: strategies,
-			Action:     nil,
-		}
-
+		rule = r.translateFTRCrdToProto(ftr)
 	case RateLimitStrategyKind:
 		rls := object.(*crdv1alpha1.RateLimitStrategy)
-		mType, _ := strconv.ParseInt(rls.Spec.MetricType, 10, 32)
-		limitMode, _ := strconv.ParseInt(rls.Spec.LimitMode, 10, 32)
-		rule = &pb.RateLimitStrategy{
-			Name:         rls.Name,
-			MetricType:   pb.RateLimitStrategy_MetricType(mType),
-			LimitMode:    pb.RateLimitStrategy_LimitMode(limitMode),
-			Threshold:    rls.Spec.Threshold,
-			StatDuration: rls.Spec.StatDurationSeconds,
-			//StatDurationTimeUnit: 2, //todo 2应该为参数
-		}
+		rule = r.translateRLSCrdToProto(rls)
 	case ThrottlingStrategyKind:
 		ts := object.(*crdv1alpha1.ThrottlingStrategy)
-		miMill, err := util.Str2MillSeconds(ts.Spec.MinIntervalOfRequests)
-		if err != nil {
-			miMill = -1
-			log.Println("translate to MinIntervalMillisOfRequests error, ", err)
-		}
-		qtMill, err := util.Str2MillSeconds(ts.Spec.QueueTimeout)
-		if err != nil {
-			qtMill = -1
-			log.Println("translate to QueueTimeoutMillis error, ", err)
-		}
-		rule = &pb.ThrottlingStrategy{
-			Name:                        ts.Name,
-			MinIntervalMillisOfRequests: miMill,
-			QueueTimeoutMillis:          qtMill,
-		}
+		rule = r.translateTSCrdToProto(ts)
 	case CircuitBreakerStrategyKind:
 		cbs := object.(*crdv1alpha1.CircuitBreakerStrategy)
-		tr, err := util.RatioStr2Float(cbs.Spec.TriggerRatio)
-		if err != nil {
-			tr = -1.0
-			log.Println("translate to TriggerRatio error, ", err)
-		}
-		sdMill, err := util.Str2MillSeconds(cbs.Spec.StatDuration)
-		if err != nil {
-			sdMill = -1
-		}
-		rtMill, err := util.Str2MillSeconds(cbs.Spec.RecoveryTimeout)
-		if err != nil {
-			rtMill = -1
-		}
-		maMill, err := util.Str2MillSeconds(cbs.Spec.SlowConditions.MaxAllowedRt)
-		if err != nil {
-			maMill = -1
-		}
-
-		rule = &pb.CircuitBreakerStrategy{
-			Name:                    cbs.Name,
-			Strategy:                util.Str2CBStrategy(cbs.Spec.Strategy),
-			TriggerRatio:            tr,
-			StatDuration:            sdMill, // todo int64 or int32
-			StatDurationTimeUnit:    0,
-			RecoveryTimeout:         int32(rtMill),
-			RecoveryTimeoutTimeUnit: 0,
-			MinRequestAmount:        cbs.Spec.MinRequestAmount,
-			SlowCondition:           &pb.CircuitBreakerStrategy_CircuitBreakerSlowCondition{MaxAllowedRtMillis: int32(maMill)},
-			ErrorCondition:          nil,
-		}
+		rule = r.translateCBSCrdToProto(cbs)
 	case ConcurrencyLimitStrategyKind:
 		cls := object.(*crdv1alpha1.ConcurrencyLimitStrategy)
-		rule = &pb.ConcurrencyLimitStrategy{
-			Name:           cls.Name,
-			LimitMode:      util.Str2LimitNode(cls.Spec.LimitMode),
-			MaxConcurrency: cls.Spec.MaxConcurrencyThreshold,
-		}
+		rule = r.translateCLSCrdToProto(cls)
 	case TrafficRouterKind:
-		cls := object.(*crdv1alpha1traffic.TrafficRouter)
-		rule = BuildRouteConfiguration(cls)
+		tr := object.(*crdv1alpha1traffic.TrafficRouter)
+		rule = r.translateTRCrdToProto(tr)
+	case EventKind:
+		e := object.(*crdv1alpha1event.Event)
+		rule = r.translateEventCrdToProto(e)
 	default:
 		return nil, nil
 	}
@@ -328,8 +263,109 @@ func (r *CRDWatcher) translateCrdToProto(object client.Object) (*anypb.Any, erro
 
 }
 
+func (r *CRDWatcher) translateFTRCrdToProto(ftr *crdv1alpha1.FaultToleranceRule) *pb.FaultToleranceRule {
+	var targets []*pb.FaultToleranceRule_FaultToleranceRuleTargetRef
+	var strategies []*pb.FaultToleranceRule_FaultToleranceStrategyRef
+	if ftr != nil {
+		for _, target := range ftr.Spec.Targets {
+			targets = append(targets, &pb.FaultToleranceRule_FaultToleranceRuleTargetRef{TargetResourceName: target.TargetResourceName})
+		}
+		for _, strategy := range ftr.Spec.Strategies {
+			strategies = append(strategies, &pb.FaultToleranceRule_FaultToleranceStrategyRef{
+				Name: strategy.Name,
+				Kind: strategy.Kind,
+			})
+		}
+	}
+	return &pb.FaultToleranceRule{
+		Targets:    targets,
+		Strategies: strategies,
+		Action:     nil,
+	}
+}
+
+func (r *CRDWatcher) translateRLSCrdToProto(rls *crdv1alpha1.RateLimitStrategy) *pb.RateLimitStrategy {
+	mType, _ := strconv.ParseInt(rls.Spec.MetricType, 10, 32)
+	limitMode, _ := strconv.ParseInt(rls.Spec.LimitMode, 10, 32)
+	return &pb.RateLimitStrategy{
+		Name:         rls.Name,
+		MetricType:   pb.RateLimitStrategy_MetricType(mType),
+		LimitMode:    pb.RateLimitStrategy_LimitMode(limitMode),
+		Threshold:    rls.Spec.Threshold,
+		StatDuration: rls.Spec.StatDurationSeconds,
+		//StatDurationTimeUnit: 2, //todo 2应该为参数
+	}
+}
+
+func (r *CRDWatcher) translateTSCrdToProto(ts *crdv1alpha1.ThrottlingStrategy) *pb.ThrottlingStrategy {
+	miMill, err := util.Str2MillSeconds(ts.Spec.MinIntervalOfRequests)
+	if err != nil {
+		miMill = -1
+		log.Println("translate to MinIntervalMillisOfRequests error, ", err)
+	}
+	qtMill, err := util.Str2MillSeconds(ts.Spec.QueueTimeout)
+	if err != nil {
+		qtMill = -1
+		log.Println("translate to QueueTimeoutMillis error, ", err)
+	}
+	return &pb.ThrottlingStrategy{
+		Name:                        ts.Name,
+		MinIntervalMillisOfRequests: miMill,
+		QueueTimeoutMillis:          qtMill,
+	}
+}
+
+func (r *CRDWatcher) translateCBSCrdToProto(cbs *crdv1alpha1.CircuitBreakerStrategy) *pb.CircuitBreakerStrategy {
+	tr, err := util.RatioStr2Float(cbs.Spec.TriggerRatio)
+	if err != nil {
+		tr = -1.0
+		log.Println("translate to TriggerRatio error, ", err)
+	}
+	sdMill, err := util.Str2MillSeconds(cbs.Spec.StatDuration)
+	if err != nil {
+		sdMill = -1
+	}
+	rtMill, err := util.Str2MillSeconds(cbs.Spec.RecoveryTimeout)
+	if err != nil {
+		rtMill = -1
+	}
+	maMill, err := util.Str2MillSeconds(cbs.Spec.SlowConditions.MaxAllowedRt)
+	if err != nil {
+		maMill = -1
+	}
+
+	return &pb.CircuitBreakerStrategy{
+		Name:                    cbs.Name,
+		Strategy:                util.Str2CBStrategy(cbs.Spec.Strategy),
+		TriggerRatio:            tr,
+		StatDuration:            sdMill, // todo int64 or int32
+		StatDurationTimeUnit:    0,
+		RecoveryTimeout:         int32(rtMill),
+		RecoveryTimeoutTimeUnit: 0,
+		MinRequestAmount:        cbs.Spec.MinRequestAmount,
+		SlowCondition:           &pb.CircuitBreakerStrategy_CircuitBreakerSlowCondition{MaxAllowedRtMillis: int32(maMill)},
+		ErrorCondition:          nil,
+	}
+}
+
+func (r *CRDWatcher) translateCLSCrdToProto(cls *crdv1alpha1.ConcurrencyLimitStrategy) *pb.ConcurrencyLimitStrategy {
+	return &pb.ConcurrencyLimitStrategy{
+		Name:           cls.Name,
+		LimitMode:      util.Str2LimitNode(cls.Spec.LimitMode),
+		MaxConcurrency: cls.Spec.MaxConcurrencyThreshold,
+	}
+}
+
+func (r *CRDWatcher) translateTRCrdToProto(tr *crdv1alpha1traffic.TrafficRouter) *routev3.RouteConfiguration {
+	return BuildRouteConfiguration(tr)
+}
+
+func (r *CRDWatcher) translateEventCrdToProto(e *crdv1alpha1event.Event) *eventpb.Event {
+	return r.eventConvertor.BuildEventConfiguration(e)
+}
+
 func NewCRDWatcher(crdManager ctrl.Manager, kind model.SubscribeKind, crdGenerator func() client.Object, sendDataHandler model.DataEntirePushHandler) *CRDWatcher {
-	return &CRDWatcher{
+	r := &CRDWatcher{
 		kind:                 kind,
 		Client:               crdManager.GetClient(),
 		logger:               ctrl.Log.WithName("controller").WithName(kind),
@@ -341,4 +377,6 @@ func NewCRDWatcher(crdManager ctrl.Manager, kind model.SubscribeKind, crdGenerat
 		crdCache:             NewCRDCache(kind),
 		sendDataHandler:      sendDataHandler,
 	}
+	r.eventConvertor = NewEventTransform(r)
+	return r
 }

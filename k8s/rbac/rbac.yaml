@@ -15,6 +15,7 @@ rules:
   - apiGroups:
       - fault-tolerance.opensergo.io
       - traffic.opensergo.io
+      - event.opensergo.io
     resources:
       - "*"
     verbs:

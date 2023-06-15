@@ -14,13 +14,13 @@
 
 FROM golang:1.16.6-alpine3.14 AS builder
 
-LABEL maintainer="Jiangnan Jia <jnan0806@gmail.com>" \
-      orgnization="OpenSergo" \
-      officialURL="https://www.opensergo.io" \
-      sourceURl="https://github.com/opensergo/opensergo-control-plane"
+LABEL maintainer="OpenSergo Maintainers" \
+      website="https://www.opensergo.io" \
+      source="https://github.com/opensergo/opensergo-control-plane"
 
-# if you are in China, you can open the follow line to set the GOPROXY.
-#ARG GOPROXY=https://goproxy.cn,direct
+# arg goproxy
+## if you are in China, in your build command, you can set arg `GOPROXY` like `https://goproxy.cn,direct`
+ARG GOPROXY=https://proxy.golang.org,direct
 
 # define work dir
 WORKDIR /opensergo/src

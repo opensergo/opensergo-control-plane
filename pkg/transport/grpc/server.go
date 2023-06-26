@@ -69,6 +69,7 @@ func (s *Server) Run() error {
 		}
 
 		trpb.RegisterOpenSergoUniversalTransportServiceServer(s.grpcServer, s.transportServer)
+
 		err = s.grpcServer.Serve(listener)
 		if err != nil {
 			return err

@@ -21,26 +21,68 @@ import (
 	"github.com/go-logr/logr"
 )
 
-// noopLogger is a logr.Logger that's always disabled, and does nothing.
-type noopLogger struct{}
+// noopLogSink is a logr.Logger that's always disabled, and does nothing.
+type noopLogSink struct{}
 
-func (l *noopLogger) Enabled() bool                             { return false }
-func (l *noopLogger) Info(_ string, _ ...interface{})           {}
-func (l *noopLogger) Error(_ error, _ string, _ ...interface{}) {}
-func (l *noopLogger) V(_ int) logr.Logger                       { return l }
-func (l *noopLogger) WithValues(_ ...interface{}) logr.Logger   { return l }
-func (l *noopLogger) WithName(_ string) logr.Logger             { return l }
+func (n noopLogSink) Init(info logr.RuntimeInfo) {
+	//TODO implement me
+}
 
-var disabledLogger = &noopLogger{}
+func (n noopLogSink) Enabled(level int) bool {
+	//TODO implement me
+	panic("implement me")
+}
 
-type k8SLogger struct {
+func (n noopLogSink) Info(level int, msg string, keysAndValues ...interface{}) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (n noopLogSink) Error(err error, msg string, keysAndValues ...interface{}) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (n noopLogSink) WithValues(keysAndValues ...interface{}) logr.LogSink {
+	return n
+}
+
+func (n noopLogSink) WithName(name string) logr.LogSink {
+	return n
+}
+
+var disabledLogSink = noopLogSink{}
+
+type k8SLogSink struct {
 	l             logging.Logger
 	level         logging.Level
 	names         []string
 	keysAndValues []interface{}
 }
 
-func (k *k8SLogger) buildNames() string {
+func (k k8SLogSink) Init(info logr.RuntimeInfo) {
+	// TODO: init the k8s logger using info
+}
+
+func (k k8SLogSink) Enabled(level int) bool {
+	return true
+}
+
+func (k k8SLogSink) Info(level int, msg string, keysAndValues ...interface{}) {
+	keysAndValues = append(keysAndValues, k.keysAndValues...)
+	switch k.level {
+	case logging.WarnLevel:
+		k.l.Warn(k.buildNames()+msg, keysAndValues...)
+	case logging.InfoLevel:
+		k.l.Info(k.buildNames()+msg, keysAndValues...)
+	case logging.DebugLevel:
+		k.l.Debug(k.buildNames()+msg, keysAndValues...)
+	default:
+		k.l.Info(k.buildNames()+msg, keysAndValues...)
+	}
+}
+
+func (k *k8SLogSink) buildNames() string {
 	size := len(k.names)
 	if size == 0 {
 		return ""
@@ -57,52 +99,18 @@ func (k *k8SLogger) buildNames() string {
 	return sb.String()
 }
 
-func (k *k8SLogger) Info(msg string, keysAndValues ...interface{}) {
-	keysAndValues = append(keysAndValues, k.keysAndValues...)
-	switch k.level {
-	case logging.WarnLevel:
-		k.l.Warn(k.buildNames()+msg, keysAndValues...)
-	case logging.InfoLevel:
-		k.l.Info(k.buildNames()+msg, keysAndValues...)
-	case logging.DebugLevel:
-		k.l.Debug(k.buildNames()+msg, keysAndValues...)
-	default:
-		k.l.Info(k.buildNames()+msg, keysAndValues...)
-	}
-}
-
-func (k *k8SLogger) Enabled() bool {
-	return true
-}
-
-func (k *k8SLogger) Error(err error, msg string, keysAndValues ...interface{}) {
+func (k *k8SLogSink) Error(err error, msg string, keysAndValues ...interface{}) {
 	keysAndValues = append(keysAndValues, k.keysAndValues...)
 	k.l.Error(err, k.buildNames()+msg, keysAndValues...)
 }
 
-func (k *k8SLogger) V(level int) logr.Logger {
-	if k.Enabled() {
-		names := make([]string, len(k.names))
-		copy(names, k.names)
-		kvs := make([]interface{}, len(k.keysAndValues))
-		copy(kvs, k.keysAndValues)
-		return &k8SLogger{
-			l:             k.l,
-			level:         logging.Level(level),
-			names:         names,
-			keysAndValues: kvs,
-		}
-	}
-	return disabledLogger
-}
-
-func (k *k8SLogger) WithValues(keysAndValues ...interface{}) logr.Logger {
+func (k *k8SLogSink) WithValues(keysAndValues ...interface{}) logr.LogSink {
 	names := make([]string, len(k.names))
 	copy(names, k.names)
 	kvs := make([]interface{}, len(k.keysAndValues))
 	copy(kvs, k.keysAndValues)
 	kvs = append(kvs, keysAndValues...)
-	return &k8SLogger{
+	return &k8SLogSink{
 		l:             k.l,
 		level:         k.level,
 		names:         names,
@@ -110,16 +118,20 @@ func (k *k8SLogger) WithValues(keysAndValues ...interface{}) logr.Logger {
 	}
 }
 
-func (k *k8SLogger) WithName(name string) logr.Logger {
+func (k *k8SLogSink) WithName(name string) logr.LogSink {
 	names := make([]string, len(k.names))
 	copy(names, k.names)
 	names = append(names, name)
 	kvs := make([]interface{}, len(k.keysAndValues))
 	copy(kvs, k.keysAndValues)
-	return &k8SLogger{
+	return &k8SLogSink{
 		l:             k.l,
 		level:         k.level,
 		names:         names,
 		keysAndValues: kvs,
 	}
+}
+
+func (k *k8SLogSink) Logger() logr.Logger {
+	return logr.Logger{}.WithSink(k).WithName(k.buildNames())
 }

@@ -15,21 +15,26 @@
 package controller
 
 import (
+	"log"
+
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	routev3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	matcherv3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"github.com/golang/protobuf/ptypes/wrappers"
+	"github.com/opensergo/opensergo-control-plane/constant"
 	"github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/traffic"
 	route "github.com/opensergo/opensergo-control-plane/pkg/proto/router/v1"
 	"github.com/opensergo/opensergo-control-plane/pkg/util"
-)
-
-const (
-	EXTENSION_ROUTE_FALL_BACK = "envoy.router.cluster_specifier_plugin.cluster_fallback"
+	"k8s.io/apimachinery/pkg/util/json"
 )
 
 // BuildRouteConfiguration for Istio RouteConfiguration
-func BuildRouteConfiguration(cls *traffic.TrafficRouter) *routev3.RouteConfiguration {
+func BuildRouteConfigurationByTrafficRouter(cls *traffic.TrafficRouter) *routev3.RouteConfiguration {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Printf("Error on build RouteConfiguration By TrafficRouter: %v", err)
+		}
+	}()
 	virtualHost := &routev3.VirtualHost{
 		Name:   cls.Name,
 		Routes: []*routev3.Route{},
@@ -43,6 +48,24 @@ func BuildRouteConfiguration(cls *traffic.TrafficRouter) *routev3.RouteConfigura
 		VirtualHosts: []*routev3.VirtualHost{virtualHost},
 	}
 	return rule
+}
+
+func BuildUnstructuredVirtualService(cls *traffic.TrafficRouter) map[string]interface{} {
+	crdMeta := map[string]interface{}{}
+	b, err := json.Marshal(cls.ObjectMeta)
+	if err == nil {
+		_ = json.Unmarshal(b, &crdMeta)
+	}
+	return map[string]interface{}{
+		constant.CRD_API_VERSION: constant.VERSION_V1_ALPHA3,
+		constant.CRD_KIND:        constant.VIRTUAL_SERVICE_KIND,
+		constant.CRD_METADATA:    crdMeta,
+		constant.CRD_NAME:        cls.Name,
+		constant.CRD_SPEC: map[string]interface{}{
+			constant.VIRTUAL_SERVICE_HOST:       cls.Spec.Hosts,
+			constant.VIRTUAL_SERVICE_HTTP_MATCH: cls.Spec.Http,
+		},
+	}
 }
 
 func buildHTTPRoutes(tr *traffic.TrafficRouter) []*routev3.Route {
@@ -130,7 +153,7 @@ func buildClusterSpecifierPlugin(isSupport bool, config *route.ClusterFallbackCo
 
 	return &routev3.ClusterSpecifierPlugin{
 		Extension: &corev3.TypedExtensionConfig{
-			Name:        EXTENSION_ROUTE_FALL_BACK,
+			Name:        constant.EXTENSION_ROUTE_FALL_BACK,
 			TypedConfig: util.MessageToAny(config),
 		},
 	}
@@ -138,6 +161,10 @@ func buildClusterSpecifierPlugin(isSupport bool, config *route.ClusterFallbackCo
 
 func buildRouteActionCluster(serviceName, namespace, version string) string {
 	return "outbound|" + "|" + version + "|" + buildFQDN(serviceName, namespace)
+}
+
+func buildSubsetName(hostName, subsetName string) string {
+	return "outbound|" + "80" + "|" + subsetName + "|" + hostName + "|"
 }
 
 func buildParamMatchers(matches []*traffic.HTTPMatchRequest) []*routev3.QueryParameterMatcher {

@@ -19,6 +19,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/opensergo/opensergo-control-plane/pkg/controller/env"
+
 	"github.com/alibaba/sentinel-golang/logging"
 	"github.com/alibaba/sentinel-golang/util"
 	crdv1alpha1 "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1"
@@ -33,8 +35,9 @@ import (
 )
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	scheme     = runtime.NewScheme()
+	setupLog   = ctrl.Log.WithName("setup")
+	istioKinds = []string{TrafficRouterKind, VirtualWorkloadsKind}
 )
 
 func init() {
@@ -66,11 +69,12 @@ func (c CRDType) String() string {
 }
 
 type KubernetesOperator struct {
-	crdManager  ctrl.Manager
-	controllers map[string]*CRDWatcher
-	ctx         context.Context
-	ctxCancel   context.CancelFunc
-	started     atomic.Value
+	crdManager       ctrl.Manager
+	activeCrdManager ctrl.Manager
+	controllers      map[string]*CRDWatcher
+	ctx              context.Context
+	ctxCancel        context.CancelFunc
+	started          atomic.Value
 
 	sendDataHandler model.DataEntirePushHandler
 
@@ -79,12 +83,13 @@ type KubernetesOperator struct {
 
 // NewKubernetesOperator creates a OpenSergo Kubernetes operator.
 func NewKubernetesOperator(sendDataHandler model.DataEntirePushHandler) (*KubernetesOperator, error) {
-	ctrl.SetLogger(&k8SLogger{
+	sink := k8SLogSink{
 		l:             logging.GetGlobalLogger(),
 		level:         logging.GetGlobalLoggerLevel(),
 		names:         make([]string, 0),
 		keysAndValues: make([]interface{}, 0),
-	})
+	}
+	ctrl.SetLogger(sink.Logger())
 	k8sConfig, err := ctrl.GetConfig()
 	if err != nil {
 		return nil, err
@@ -100,14 +105,32 @@ func NewKubernetesOperator(sendDataHandler model.DataEntirePushHandler) (*Kubern
 		setupLog.Error(err, "unable to start manager")
 		return nil, err
 	}
+
+	var activeMgr ctrl.Manager
+	if env.GetENV() == env.ISTIO_ENV {
+		activeMgr, err = ctrl.NewManager(k8sConfig, ctrl.Options{
+			Scheme: scheme,
+			// disable metric server
+			MetricsBindAddress:     "0",
+			HealthProbeBindAddress: "0",
+			LeaderElection:         false,
+		})
+		if err != nil {
+			setupLog.Error(err, "unable to start active manager")
+			return nil, err
+		}
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	k := &KubernetesOperator{
-		crdManager:      mgr,
-		controllers:     make(map[string]*CRDWatcher),
-		ctx:             ctx,
-		ctxCancel:       cancel,
-		sendDataHandler: sendDataHandler,
+		crdManager:       mgr,
+		activeCrdManager: activeMgr,
+		controllers:      make(map[string]*CRDWatcher),
+		ctx:              ctx,
+		ctxCancel:        cancel,
+		sendDataHandler:  sendDataHandler,
 	}
+
 	return k, nil
 }
 
@@ -200,6 +223,19 @@ func (k *KubernetesOperator) AddWatcher(target model.SubscribeTarget) error {
 	return nil
 }
 
+func (k *KubernetesOperator) StartActiveListen() error {
+	for _, istioKind := range istioKinds {
+		crdMetadata, _ := GetCrdMetadata(istioKind)
+		activeCrdWatcher := NewActiveCRDWatcher(k.activeCrdManager, istioKind, crdMetadata.Generator())
+		err := ctrl.NewControllerManagedBy(k.activeCrdManager).For(crdMetadata.Generator()()).Complete(activeCrdWatcher)
+		if err != nil {
+			setupLog.Error(err, "Failed to start active listen for Istio")
+			return err
+		}
+	}
+	return nil
+}
+
 // Close exit the K8S KubernetesOperator
 func (k *KubernetesOperator) Close() error {
 	k.ctxCancel()
@@ -221,6 +257,17 @@ func (k *KubernetesOperator) Run() error {
 		}
 		setupLog.Info("OpenSergo operator will be closed")
 	})
+	if env.GetENV() == env.ISTIO_ENV {
+		go util.RunWithRecover(func() {
+			setupLog.Info("Starting active OpenSergo operator")
+			if err := k.activeCrdManager.Start(k.ctx); err != nil {
+				setupLog.Error(err, "problem running active OpenSergo operator")
+			}
+			setupLog.Info("Active OpenSergo operator will be closed")
+		})
+		return k.StartActiveListen()
+	}
+
 	return nil
 }
 

@@ -33,17 +33,16 @@ const (
 
 // Server represents the transport server of OpenSergo universal transport service (OUTS).
 type Server struct {
-	transportServer *TransportServer
-	grpcServer      *grpc.Server
-
-	connectionManager *ConnectionManager
+	transportServer   *TransportServer
+	grpcServer        *grpc.Server
+	connectionManager *ConnectionManager[*Connection]
 
 	port    uint32
 	started *atomic.Bool
 }
 
 func NewServer(port uint32, subscribeHandlers []model.SubscribeRequestHandler) *Server {
-	connectionManager := NewConnectionManager()
+	connectionManager := NewConnectionManager[*Connection]()
 	return &Server{
 		transportServer:   newTransportServer(connectionManager, subscribeHandlers),
 		port:              port,
@@ -53,7 +52,7 @@ func NewServer(port uint32, subscribeHandlers []model.SubscribeRequestHandler) *
 	}
 }
 
-func (s *Server) ConnectionManager() *ConnectionManager {
+func (s *Server) ConnectionManager() *ConnectionManager[*Connection] {
 	return s.connectionManager
 }
 
@@ -81,7 +80,7 @@ func (s *Server) Run() error {
 type TransportServer struct {
 	trpb.OpenSergoUniversalTransportServiceServer
 
-	connectionManager *ConnectionManager
+	connectionManager *ConnectionManager[*Connection]
 
 	subscribeHandlers []model.SubscribeRequestHandler
 }
@@ -155,7 +154,7 @@ func (s *TransportServer) SubscribeConfig(stream trpb.OpenSergoUniversalTranspor
 	}
 }
 
-func newTransportServer(connectionManager *ConnectionManager, subscribeHandlers []model.SubscribeRequestHandler) *TransportServer {
+func newTransportServer(connectionManager *ConnectionManager[*Connection], subscribeHandlers []model.SubscribeRequestHandler) *TransportServer {
 	return &TransportServer{
 		connectionManager: connectionManager,
 		subscribeHandlers: subscribeHandlers,

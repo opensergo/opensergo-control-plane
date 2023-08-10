@@ -73,12 +73,12 @@ type KubernetesOperator struct {
 	started     atomic.Value
 
 	sendDataHandler model.DataEntirePushHandler
-
-	controllerMux sync.RWMutex
+	XDspushHandler  model.XDSPushHandler
+	controllerMux   sync.RWMutex
 }
 
 // NewKubernetesOperator creates a OpenSergo Kubernetes operator.
-func NewKubernetesOperator(sendDataHandler model.DataEntirePushHandler) (*KubernetesOperator, error) {
+func NewKubernetesOperator(sendDataHandler model.DataEntirePushHandler, xdspushhandler model.XDSPushHandler) (*KubernetesOperator, error) {
 	ctrl.SetLogger(&k8SLogger{
 		l:             logging.GetGlobalLogger(),
 		level:         logging.GetGlobalLoggerLevel(),
@@ -107,6 +107,7 @@ func NewKubernetesOperator(sendDataHandler model.DataEntirePushHandler) (*Kubern
 		ctx:             ctx,
 		ctxCancel:       cancel,
 		sendDataHandler: sendDataHandler,
+		XDspushHandler:  xdspushhandler,
 	}
 	return k, nil
 }
@@ -145,7 +146,7 @@ func (k *KubernetesOperator) RegisterWatcher(target model.SubscribeTarget) (*CRD
 			return nil, errors.New("CRD not supported: " + target.Kind)
 		}
 		// This kind of CRD has never been watched.
-		crdWatcher := NewCRDWatcher(k.crdManager, target.Kind, crdMetadata.Generator(), k.sendDataHandler)
+		crdWatcher := NewCRDWatcher(k.crdManager, target.Kind, crdMetadata.Generator(), k.sendDataHandler, k.XDspushHandler)
 		err = crdWatcher.AddSubscribeTarget(target)
 		if err != nil {
 			return nil, err
@@ -178,7 +179,7 @@ func (k *KubernetesOperator) AddWatcher(target model.SubscribeTarget) error {
 		if !crdSupports {
 			return errors.New("CRD not supported: " + target.Kind)
 		}
-		crdWatcher := NewCRDWatcher(k.crdManager, target.Kind, crdMetadata.Generator(), k.sendDataHandler)
+		crdWatcher := NewCRDWatcher(k.crdManager, target.Kind, crdMetadata.Generator(), k.sendDataHandler, k.XDspushHandler)
 		err = crdWatcher.AddSubscribeTarget(target)
 		if err != nil {
 			return err

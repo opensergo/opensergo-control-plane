@@ -12,25 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package util
 
-import (
-	"log"
+import "strings"
 
-	"github.com/opensergo/opensergo-control-plane"
-	"github.com/opensergo/opensergo-control-plane/pkg/config"
-)
-
-func main() {
-	c := config.NewDefaultConfig()
-	opts := c.InitOptsFromCommand()
-
-	cp, err := opensergo.NewControlPlane(opts...)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = cp.Start()
-	if err != nil {
-		log.Fatal(err)
-	}
+// IsBlank checks whether the given string is blank.
+func IsBlank(s string) bool {
+	return strings.TrimSpace(s) == ""
 }

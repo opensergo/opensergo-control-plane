@@ -38,11 +38,11 @@ type Server struct {
 
 	connectionManager *ConnectionManager
 
-	port    uint32
+	port    uint
 	started *atomic.Bool
 }
 
-func NewServer(port uint32, subscribeHandlers []model.SubscribeRequestHandler) *Server {
+func NewServer(port uint, subscribeHandlers []model.SubscribeRequestHandler) *Server {
 	connectionManager := NewConnectionManager()
 	return &Server{
 		transportServer:   newTransportServer(connectionManager, subscribeHandlers),

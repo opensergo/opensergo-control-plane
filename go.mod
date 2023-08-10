@@ -4,7 +4,6 @@ go 1.14
 
 require (
 	github.com/alibaba/sentinel-golang v1.0.3
-	github.com/cncf/xds/go v0.0.0-20220314180256-7f1daf1720fc
 	github.com/envoyproxy/go-control-plane v0.10.3-0.20221109183938-2935a23e638f
 	github.com/envoyproxy/protoc-gen-validate v0.6.7
 	github.com/go-logr/logr v0.4.0
@@ -18,6 +17,7 @@ require (
 	google.golang.org/grpc v1.51.0
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
+	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/apimachinery v0.21.4
 	k8s.io/client-go v0.21.4
 	sigs.k8s.io/controller-runtime v0.9.7

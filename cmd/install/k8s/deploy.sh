@@ -1,4 +1,8 @@
 #!/bin/sh
+##!/usr/bin/env bash
+# ======================================================================
+# Linux/OSX startup script
+# ======================================================================
 
 # Copyright 2022, OpenSergo Authors
 #
@@ -17,15 +21,115 @@
 
 # Prepare Env
 # OPENSERGO_CONTROL_PLANE_HOME
-OPENSERGO_CONTROL_PLANE_HOME=$HOME/opensergo/opensergo-control-plane
+OPENSERGO_CONTROL_PLANE_HOME=$HOME/.opensergo.install/opensergo-control-plane
 mkdir -p $OPENSERGO_CONTROL_PLANE_HOME
 
+# Exec Command Args
+VERSION=main
+IS_LOCAL=false
+IS_UNINSTALL=false
+IS_HELP=false
 
-# Uninstall opensergo-control-plane.yaml
-kubectl delete -f $OPENSERGO_CONTROL_PLANE_HOME/k8s/workload/opensergo-control-plane.yaml
+# Init Var, which will change by parseArgs()
+DOWNLOAD_TARGET_URL_PREFIX=$OPENSERGO_CONTROL_PLANE_HOME/main
+DOWNLOAD_SOURCE_URL_PREFIX=$RESOURCE_URL_PREFIX/main
 
-# Download opensergo-control-plane.yaml
-mkdir -p $OPENSERGO_CONTROL_PLANE_HOME/k8s/workload
-wget --no-check-certificate -O $OPENSERGO_CONTROL_PLANE_HOME/k8s/workload/opensergo-control-plane.yaml https://raw.githubusercontent.com/opensergo/opensergo-control-plane/main/k8s/workload/opensergo-control-plane.yaml
-# Install opensergo-control-plane.yaml
-kubectl apply -f $OPENSERGO_CONTROL_PLANE_HOME/k8s/workload/opensergo-control-plane.yaml
+# parse exec command args
+allArgs=($*)
+for (( i = 1; i <= $#; i++ )); do
+  currArg=${allArgs[$i-1]}
+  case $currArg in
+      "-h" | "-help")
+        IS_HELP=true
+        ;;
+      "-l" | "-local")
+        IS_LOCAL=true
+        ;;
+      "-u" | "-uninstall")
+        IS_LOCAL=true
+        ;;
+    esac
+
+  if [ $i = $# ] ; then
+    if [ "-" != ${currArg:0:1} ]; then
+      VERSION=$currArg
+    fi
+  fi
+done
+
+
+
+function parseVersion() {
+  # RESOURCE_URL
+  resource_url_prefix=https://raw.githubusercontent.com/opensergo/opensergo-control-plane
+  resource_url_version=$VERSION
+
+  # parse VERSION_URL
+  if [ "main" != $VERSION ] ; then
+    resource_url_version=tree/$VERSION
+  fi
+
+  DOWNLOAD_TARGET_URL_PREFIX=$OPENSERGO_CONTROL_PLANE_HOME/$VERSION
+  DOWNLOAD_SOURCE_URL_PREFIX=$resource_url_prefix/$resource_url_version
+}
+
+# invoke parseArgs()
+parseVersion
+
+# Resources in k8s/workload
+res_deploy[0]=k8s/workload/opensergo-control-plane.yaml
+
+function download_workload() {
+  rm -rf $OPENSERGO_CONTROL_PLANE_HOME/$VERSION/k8s/workload/*
+  mkdir -p $OPENSERGO_CONTROL_PLANE_HOME/$VERSION/k8s/workload
+
+  for crd in ${res_deploy[*]}
+  do
+    wget --no-check-certificate -O $DOWNLOAD_TARGET_URL_PREFIX/$crd $DOWNLOAD_SOURCE_URL_PREFIX/$crd
+  done
+}
+
+function install_workload() {
+  for crd in ${res_deploy[*]}
+  do
+    kubectl apply -f $DOWNLOAD_TARGET_URL_PREFIX/$crd
+  done
+}
+
+function uninstall_workload() {
+  for crd in ${res_deploy[*]}
+  do
+    kubectl delete -f $DOWNLOAD_TARGET_URL_PREFIX/$crd
+  done
+}
+
+function install() {
+  # invoke uninstall
+  uninstall_workload
+  # download or not
+  if [ true != $IS_LOCAL ]; then
+    download_workload
+  fi
+  # invoke install
+  install_workload
+}
+
+
+function usage() {
+  echo "Usage:  deploy.sh [-Option] [version]"
+  echo "Resources will download in $OPENSERGO_CONTROL_PLANE_HOME"
+  echo ""
+  echo "Available Options:"
+  echo "  -l, -local         : exec from local resources, which will not download resources"
+  echo "  -u, -uninstall     : uninstall Workload of opensergo control plane"
+  echo "  -h, -help          : helps"
+  echo "version:             : default version is main"
+}
+
+if [ true = $IS_HELP ] ; then
+  usage
+elif [ true = $IS_UNINSTALL ] ; then
+  uninstall
+else
+  install
+fi

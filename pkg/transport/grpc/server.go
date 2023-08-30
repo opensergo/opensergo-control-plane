@@ -16,15 +16,15 @@ package grpc
 
 import (
 	"fmt"
-	"io"
-	"log"
-	"net"
-
 	"github.com/opensergo/opensergo-control-plane/pkg/model"
+	"github.com/opensergo/opensergo-control-plane/pkg/plugin/pl"
 	trpb "github.com/opensergo/opensergo-control-plane/pkg/proto/transport/v1"
 	"github.com/opensergo/opensergo-control-plane/pkg/util"
 	"go.uber.org/atomic"
 	"google.golang.org/grpc"
+	"io"
+	"log"
+	"net"
 )
 
 const (
@@ -40,16 +40,20 @@ type Server struct {
 
 	port    uint32
 	started *atomic.Bool
+
+	PluginServer *pl.PluginServer
 }
 
 func NewServer(port uint32, subscribeHandlers []model.SubscribeRequestHandler) *Server {
 	connectionManager := NewConnectionManager()
+	pluginServer := pl.NewPluginServer()
 	return &Server{
 		transportServer:   newTransportServer(connectionManager, subscribeHandlers),
 		port:              port,
 		grpcServer:        grpc.NewServer(),
 		started:           atomic.NewBool(false),
 		connectionManager: connectionManager,
+		PluginServer:      pluginServer,
 	}
 }
 
@@ -62,6 +66,21 @@ func (s *Server) ComponentName() string {
 }
 
 func (s *Server) Run() error {
+	go func() {
+		for {
+			select {
+			case <-s.PluginServer.ShutdownCh:
+				s.PluginServer.ContextCancel()
+				if err := s.PluginServer.RunShutdownFuncs(); err != nil {
+					log.Printf("Error:%s\n", err.Error())
+				}
+				s.grpcServer.GracefulStop()
+				log.Println("Server shutdown")
+				return
+			}
+		}
+	}()
+
 	if s.started.CAS(false, true) {
 		listener, err := net.Listen("tcp", fmt.Sprintf(":%d", s.port))
 		if err != nil {
@@ -69,6 +88,11 @@ func (s *Server) Run() error {
 		}
 
 		trpb.RegisterOpenSergoUniversalTransportServiceServer(s.grpcServer, s.transportServer)
+
+		err = s.PluginServer.InitPlugin()
+		if err != nil {
+			return err
+		}
 		err = s.grpcServer.Serve(listener)
 		if err != nil {
 			return err

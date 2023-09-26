@@ -45,7 +45,7 @@ func (c *Connection) IsValid() bool {
 
 type mapValue interface {
 	interface {
-		*Connection | *model.XDsConnection
+		*Connection | *model.XDSConnection
 	}
 }
 type ConnectionMap[T mapValue] map[model.ClientIdentifier]T

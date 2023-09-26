@@ -8,47 +8,33 @@ import (
 	extension "github.com/envoyproxy/go-control-plane/envoy/service/extension/v3"
 	"github.com/opensergo/opensergo-control-plane/pkg/model"
 	"github.com/opensergo/opensergo-control-plane/pkg/util"
+	uatomic "go.uber.org/atomic"
 	"google.golang.org/grpc"
-	"net"
-
 	"google.golang.org/grpc/peer"
 	"google.golang.org/protobuf/types/known/anypb"
 	"log"
+	"net"
 	"strconv"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 var connectionNumber = int64(0)
 
 type DiscoveryServer struct {
-	port uint32
-	// adsClients reflect active gRPC channels, for both ADS and EDS.
-	ecdsClients      map[model.ClientIdentifier]*model.XDsConnection
-	ecdsClientsMutex sync.RWMutex
-	grpcServer       *grpc.Server
-	// cxz
-	// map from  to xdsconnection
-	// namespace appname and kind
-	XDSConnectionManeger *ConnectionManager[*model.XDsConnection]
-	subscribeHandlers    []model.SubscribeXDsRequestHandler
+	port                 uint32                                          // Port on which the server is running.
+	ecdsClients          map[model.ClientIdentifier]*model.XDSConnection // Active gRPC channels for both ADS and EDS.
+	ecdsClientsMutex     sync.RWMutex                                    // Mutex for managing concurrent access to ecdsClients.
+	grpcServer           *grpc.Server                                    // gRPC server instance.
+	XDSConnectionManager *ConnectionManager[*model.XDSConnection]        // Connection manager for XDS connections.
+	subscribeHandlers    []model.SubscribeXDsRequestHandler              // List of request handlers for XDS subscription.
+	pushVersion          uatomic.Uint64                                  // Atomic counter for push version.
 }
 
 func (s *DiscoveryServer) StreamExtensionConfigs(stream model.DiscoveryStream) error {
 	return s.Stream(stream)
 }
-
-//func (s *DiscoveryServer) WaitForRequestLimit(ctx context.Context) error {
-//	if s.RequestRateLimit.Limit() == 0 {
-//		// Allow opt out when rate limiting is set to 0qps
-//		return nil
-//	}
-//	// Give a bit of time for queue to clear out, but if not fail fast. Client will connect to another
-//	// instance in best case, or retry with backoff.
-//	wait, cancel := context.WithTimeout(ctx, time.Second)
-//	defer cancel()
-//	return s.RequestRateLimit.Wait(wait)
-//}
 
 func (s *DiscoveryServer) Stream(stream model.DiscoveryStream) error {
 	ctx := stream.Context()
@@ -99,7 +85,7 @@ func (s *DiscoveryServer) Stream(stream model.DiscoveryStream) error {
 	return nil
 }
 
-func (s *DiscoveryServer) receive(con *model.XDsConnection) {
+func (s *DiscoveryServer) receive(con *model.XDSConnection) {
 	defer func() {
 
 		close(con.ReqChan)
@@ -114,7 +100,10 @@ func (s *DiscoveryServer) receive(con *model.XDsConnection) {
 	firstRequest := true
 	for {
 		req, err := con.Stream.Recv()
-		log.Printf("Stream received message failed, err=%s\n", err.Error())
+		if err != nil {
+			log.Printf("Stream received message failed, err=%s\n", err.Error())
+			return
+		}
 
 		if firstRequest {
 			firstRequest = false
@@ -132,7 +121,7 @@ func (s *DiscoveryServer) receive(con *model.XDsConnection) {
 	}
 }
 
-func (s *DiscoveryServer) initConnection(node *core.Node, con *model.XDsConnection) error {
+func (s *DiscoveryServer) initConnection(node *core.Node, con *model.XDSConnection) error {
 	// First request so initialize connection id and start tracking it.
 	con.Identifier = connectionID(node.Id)
 	con.Node = node
@@ -154,7 +143,7 @@ func connectionID(node string) model.ClientIdentifier {
 	return model.ClientIdentifier(node + "-" + strconv.FormatInt(id, 10))
 }
 
-func (s *DiscoveryServer) addCon(identifier model.ClientIdentifier, con *model.XDsConnection) {
+func (s *DiscoveryServer) addCon(identifier model.ClientIdentifier, con *model.XDSConnection) {
 	s.ecdsClientsMutex.Lock()
 	defer s.ecdsClientsMutex.Unlock()
 	s.ecdsClients[identifier] = con
@@ -179,13 +168,17 @@ func shouldUnsubscribe(request *discovery.DiscoveryRequest) bool {
 
 var emptyResourceDelta = model.ResourceDelta{}
 
-func ShouldRespond(con *model.XDsConnection, request *discovery.DiscoveryRequest) (bool, model.ResourceDelta) {
+func ShouldRespond(con *model.XDSConnection, request *discovery.DiscoveryRequest) (bool, model.ResourceDelta) {
 
 	// NACK
 	if request.ErrorDetail != nil {
 		//LOG
 		return false, emptyResourceDelta
 	}
+
+	con.RLock()
+	previousInfo := con.WatchedResources[request.TypeUrl]
+	con.RUnlock()
 
 	if shouldUnsubscribe(request) {
 		con.Lock()
@@ -194,13 +187,9 @@ func ShouldRespond(con *model.XDsConnection, request *discovery.DiscoveryRequest
 		return false, emptyResourceDelta
 	}
 
-	con.RLock()
-	previousInfo := con.WatchedResources[request.TypeUrl]
-	con.RUnlock()
-
 	// We should always respond with the current resource names.
 	if request.ResponseNonce == "" || previousInfo == nil {
-		log.Println("ECDS: INIT/RECONNECT %s %s %s", con.Identifier, request.VersionInfo, request.ResponseNonce)
+		log.Printf("ECDS: INIT/RECONNECT %s %s %s", con.Identifier, request.VersionInfo, request.ResponseNonce)
 		con.Lock()
 		con.WatchedResources[request.TypeUrl] = &model.WatchedResource{TypeUrl: request.TypeUrl, ResourceNames: request.ResourceNames}
 		con.Unlock()
@@ -220,6 +209,8 @@ func ShouldRespond(con *model.XDsConnection, request *discovery.DiscoveryRequest
 		return false, emptyResourceDelta
 	}
 
+	// log for test
+	log.Printf("nonce before %s nonce now %s,", request.ResponseNonce, previousInfo.NonceSent)
 	// If it comes here, that means nonce match.
 	con.Lock()
 	previousResources := con.WatchedResources[request.TypeUrl].ResourceNames
@@ -235,6 +226,7 @@ func ShouldRespond(con *model.XDsConnection, request *discovery.DiscoveryRequest
 	added := cur.Difference(prev)
 
 	if len(removed) == 0 && len(added) == 0 {
+		log.Println("ack received")
 		// this is an ack nonce matched
 		return false, emptyResourceDelta
 	}
@@ -245,7 +237,7 @@ func ShouldRespond(con *model.XDsConnection, request *discovery.DiscoveryRequest
 	}
 }
 
-func (s *DiscoveryServer) pushXds(con *model.XDsConnection, w *model.WatchedResource, version int64, rules []*anypb.Any) error {
+func (s *DiscoveryServer) pushXds(con *model.XDSConnection, w *model.WatchedResource, version int64, rules []*anypb.Any) error {
 
 	resp := &discovery.DiscoveryResponse{
 		TypeUrl:     w.TypeUrl,
@@ -257,12 +249,11 @@ func (s *DiscoveryServer) pushXds(con *model.XDsConnection, w *model.WatchedReso
 	return con.Stream.Send(resp)
 }
 
-// cxz
-func (s *DiscoveryServer) AddConnectioonToMap(namespace, appname, kind string, con *model.XDsConnection) {
+func (s *DiscoveryServer) AddConnectionToMap(namespace, appname, kind string, con *model.XDSConnection) {
 	s.ecdsClientsMutex.Lock()
 	defer s.ecdsClientsMutex.Unlock()
 
-	s.XDSConnectionManeger.Add(namespace, appname, kind, con, con.Identifier)
+	s.XDSConnectionManager.Add(namespace, appname, kind, con, con.Identifier)
 
 }
 
@@ -270,7 +261,7 @@ func (s *DiscoveryServer) RemoveConnectionFromMap(n model.NamespacedApp, kind st
 	s.ecdsClientsMutex.Lock()
 	defer s.ecdsClientsMutex.Unlock()
 	// TODO: HANDLE Error
-	if err := s.XDSConnectionManeger.removeInternal(n, kind, identifier); err != nil {
+	if err := s.XDSConnectionManager.removeInternal(n, kind, identifier); err != nil {
 		return err
 	}
 	return nil
@@ -278,12 +269,12 @@ func (s *DiscoveryServer) RemoveConnectionFromMap(n model.NamespacedApp, kind st
 }
 
 func NewDiscoveryServer(port uint32, subscribeHandlers []model.SubscribeXDsRequestHandler) *DiscoveryServer {
-	connectionManager := NewConnectionManager[*model.XDsConnection]()
+	connectionManager := NewConnectionManager[*model.XDSConnection]()
 	return &DiscoveryServer{
 		port:                 port,
-		ecdsClients:          make(map[model.ClientIdentifier]*model.XDsConnection),
+		ecdsClients:          make(map[model.ClientIdentifier]*model.XDSConnection),
 		grpcServer:           grpc.NewServer(),
-		XDSConnectionManeger: connectionManager,
+		XDSConnectionManager: connectionManager,
 		subscribeHandlers:    subscribeHandlers,
 	}
 }
@@ -303,11 +294,16 @@ func (s *DiscoveryServer) Run() error {
 	if err != nil {
 		return err
 	}
-
+	fmt.Println(listener)
 	extension.RegisterExtensionConfigDiscoveryServiceServer(s.grpcServer, s)
 	err = s.grpcServer.Serve(listener)
+
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func (s *DiscoveryServer) NextVersion() string {
+	return time.Now().Format(time.RFC3339) + "/" + strconv.FormatUint(s.pushVersion.Inc(), 10)
 }

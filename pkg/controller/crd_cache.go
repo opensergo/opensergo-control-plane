@@ -27,6 +27,7 @@ type CRDObjectsHolder struct {
 	version int64
 }
 
+// TODO: need use generic to support two kinds of connection xDS Connection and normal Connection
 // CRDCache caches versioned CRD objects in local.
 type CRDCache struct {
 	kind string

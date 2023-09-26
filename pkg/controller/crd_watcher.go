@@ -16,6 +16,7 @@ package controller
 
 import (
 	"context"
+	trpb "github.com/opensergo/opensergo-control-plane/pkg/proto/transport/v1"
 	"log"
 	"net/http"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -28,7 +29,6 @@ import (
 	crdv1alpha1traffic "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/traffic"
 	"github.com/opensergo/opensergo-control-plane/pkg/model"
 	pb "github.com/opensergo/opensergo-control-plane/pkg/proto/fault_tolerance/v1"
-	trpb "github.com/opensergo/opensergo-control-plane/pkg/proto/transport/v1"
 	"github.com/opensergo/opensergo-control-plane/pkg/util"
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/proto"
@@ -52,7 +52,7 @@ type CRDWatcher struct {
 	subscribedList map[model.SubscribeTarget]bool
 
 	subscribedNamespaces map[string]bool
-	//cxz
+
 	numberOfAppsInNamedspaces map[string]int
 
 	subscribedApps map[model.NamespacedApp]bool
@@ -95,12 +95,10 @@ func (r *CRDWatcher) AddSubscribeTarget(target model.SubscribeTarget) error {
 	r.subscribedList[target] = true
 	r.subscribedNamespaces[target.Namespace] = true
 	r.subscribedApps[target.NamespacedApp()] = true
-	//cxz
 	r.numberOfAppsInNamedspaces[target.Namespace]++
 	return nil
 }
 
-// cxz
 func (r *CRDWatcher) RemoveSubscribeTarget(target model.SubscribeTarget) error {
 	// TODO: implement me
 	if target.Kind != r.kind {
@@ -218,22 +216,25 @@ func (r *CRDWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		Namespace: req.Namespace,
 		App:       app,
 	}
-	// TODO: Now we can do something for the crd object!
+	//// TODO: Now we can do something for the crd object!
 	rules, version := r.GetRules(nsa)
-	status := &trpb.Status{
-		Code:    int32(200),
-		Message: "Get and send rule success",
-		Details: nil,
-	}
-	dataWithVersion := &trpb.DataWithVersion{Data: rules, Version: version}
-	if err := r.sendDataHandler(req.Namespace, app, r.kind, dataWithVersion, status, ""); err != nil {
-		logger.Error(err, "Failed to send rules", "kind", r.kind)
-	}
 
-	//cxz
-	// push xds rules
-	if err := r.xDSPushHandler(req.Namespace, app, r.kind, rules, version); err != nil {
-		logger.Error(err, "Failed to pushxds rules", "kind", r.kind)
+	// If GlobalBoolVariable is True send data to native server else send data to xdsserver
+	if model.GlobalBoolVariable {
+		status := &trpb.Status{
+			Code:    int32(200),
+			Message: "Get and send rule success",
+			Details: nil,
+		}
+		dataWithVersion := &trpb.DataWithVersion{Data: rules, Version: version}
+		if err := r.sendDataHandler(req.Namespace, app, r.kind, dataWithVersion, status, ""); err != nil {
+			logger.Error(err, "Failed to send rules", "kind", r.kind)
+		}
+	} else {
+		// push xds rules
+		if err := r.xDSPushHandler(req.Namespace, app, r.kind, rules); err != nil {
+			logger.Error(err, "Failed to pushxds rules", "kind", r.kind)
+		}
 	}
 
 	return ctrl.Result{}, nil
@@ -369,14 +370,13 @@ func (r *CRDWatcher) translateCrdToProto(object client.Object) (*anypb.Any, erro
 
 func NewCRDWatcher(crdManager ctrl.Manager, kind model.SubscribeKind, crdGenerator func() client.Object, sendDataHandler model.DataEntirePushHandler, xdspushhandler model.XDSPushHandler) *CRDWatcher {
 	return &CRDWatcher{
-		kind:                 kind,
-		Client:               crdManager.GetClient(),
-		logger:               ctrl.Log.WithName("controller").WithName(kind),
-		scheme:               crdManager.GetScheme(),
-		subscribedList:       make(map[model.SubscribeTarget]bool, 4),
-		subscribedNamespaces: make(map[string]bool),
-		subscribedApps:       make(map[model.NamespacedApp]bool),
-		//cxz
+		kind:                      kind,
+		Client:                    crdManager.GetClient(),
+		logger:                    ctrl.Log.WithName("controller").WithName(kind),
+		scheme:                    crdManager.GetScheme(),
+		subscribedList:            make(map[model.SubscribeTarget]bool, 4),
+		subscribedNamespaces:      make(map[string]bool),
+		subscribedApps:            make(map[model.NamespacedApp]bool),
 		numberOfAppsInNamedspaces: make(map[string]int),
 		crdGenerator:              crdGenerator,
 		crdCache:                  NewCRDCache(kind),

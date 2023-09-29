@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	pb "github.com/opensergo/opensergo-control-plane/pkg/plugin/proto/stream/v1"
+
 	"github.com/hashicorp/go-plugin"
-	pb "github.com/opensergo/opensergo-control-plane/pkg/plugin/proto/stream"
 	"google.golang.org/grpc"
 )
 

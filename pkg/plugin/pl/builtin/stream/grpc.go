@@ -4,13 +4,14 @@ import (
 	"context"
 	"fmt"
 
+	v1 "github.com/opensergo/opensergo-control-plane/pkg/plugin/proto/stream/v1"
+
 	"github.com/hashicorp/go-plugin"
-	pb "github.com/opensergo/opensergo-control-plane/pkg/plugin/proto/stream"
 	"google.golang.org/grpc"
 )
 
 type GRPCClient struct {
-	client pb.StreamGreeterClient
+	client v1.RateLimitServiceClient
 	broker *plugin.GRPCBroker
 }
 
@@ -20,7 +21,7 @@ func (g *GRPCClient) Greeter(name string, h Hello) (string, error) {
 	var s *grpc.Server
 	serverFunc := func(opts []grpc.ServerOption) *grpc.Server {
 		s = grpc.NewServer(opts...)
-		pb.RegisterHelloServer(s, addHelperServer)
+		v1.RegisterHelloServer(s, addHelperServer)
 
 		return s
 	}
@@ -28,7 +29,7 @@ func (g *GRPCClient) Greeter(name string, h Hello) (string, error) {
 	brokerID := g.broker.NextId()
 	go g.broker.AcceptAndServe(brokerID, serverFunc)
 
-	resp, err := g.client.Greet(context.Background(), &pb.StreamReq{
+	resp, err := g.client.Greet(context.Background(), &v1.StreamReq{
 		Id:   brokerID,
 		Name: name,
 	})
@@ -41,34 +42,34 @@ func (g *GRPCClient) Greeter(name string, h Hello) (string, error) {
 }
 
 type GRPCServer struct {
-	pb.UnimplementedStreamGreeterServer
+	v1.UnimplementedStreamGreeterServer
 	Impl   Stream
 	broker *plugin.GRPCBroker
 }
 
-func (g *GRPCServer) Greet(ctx context.Context, req *pb.StreamReq) (*pb.StreamResp, error) {
+func (g *GRPCServer) Greet(ctx context.Context, req *v1.StreamReq) (*v1.StreamResp, error) {
 	conn, err := g.broker.Dial(req.Id)
 	if err != nil {
 		return nil, err
 	}
 	defer conn.Close()
 
-	a := &GRPCHelloClient{pb.NewHelloClient(conn)}
+	a := &GRPCHelloClient{v1.NewHelloClient(conn)}
 	resp, err := g.Impl.Greeter(req.Name, a)
 	if err != nil {
 		return nil, err
 	}
-	return &pb.StreamResp{
+	return &v1.StreamResp{
 		Greet: resp,
 	}, nil
 }
 
 type GRPCHelloClient struct {
-	client pb.HelloClient
+	client v1.HelloClient
 }
 
 func (g *GRPCHelloClient) Say(s string) string {
-	resp, err := g.client.Say(context.Background(), &pb.HelloReq{
+	resp, err := g.client.Say(context.Background(), &v1.HelloReq{
 		Pre: s,
 	})
 	if err != nil {
@@ -78,13 +79,13 @@ func (g *GRPCHelloClient) Say(s string) string {
 }
 
 type GRPCHelloServer struct {
-	pb.UnimplementedHelloServer
+	v1.UnimplementedHelloServer
 	Impl Hello
 }
 
-func (g *GRPCHelloServer) Say(ctx context.Context, req *pb.HelloReq) (*pb.HelloResp, error) {
+func (g *GRPCHelloServer) Say(ctx context.Context, req *v1.HelloReq) (*v1.HelloResp, error) {
 	resp := g.Impl.Say(fmt.Sprint(req.Pre, " GRPCHelloServer"))
-	return &pb.HelloResp{
+	return &v1.HelloResp{
 		Resp: resp,
 	}, nil
 }

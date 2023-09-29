@@ -18,7 +18,7 @@ SOURCE="${BASH_SOURCE[0]}"
 while [ -h "$SOURCE" ] ; do SOURCE="$(readlink "$SOURCE")"; done
 export DIR="$( cd -P "$( dirname "$SOURCE" )/.." && pwd )"
 echo "DIR: $DIR"
-# Create boundary plugins
+# Create plugins
 echo "==> Building opensergo plugins..."
 rm -f $DIR/assets/opensergo-plugin-*
 for CURR_PLUGIN in $(ls $DIR/server); do

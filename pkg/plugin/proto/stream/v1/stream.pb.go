@@ -4,7 +4,7 @@
 // 	protoc        v3.19.4
 // source: stream.proto
 
-package stream
+package v1
 
 import (
 	reflect "reflect"

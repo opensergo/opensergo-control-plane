@@ -72,13 +72,14 @@ type KubernetesOperator struct {
 	ctxCancel   context.CancelFunc
 	started     atomic.Value
 
-	sendDataHandler model.DataEntirePushHandler
+	sendDataHandler     model.DataEntirePushHandler
+	notifyPluginHandler model.NotifyPluginHandler
 
 	controllerMux sync.RWMutex
 }
 
 // NewKubernetesOperator creates a OpenSergo Kubernetes operator.
-func NewKubernetesOperator(sendDataHandler model.DataEntirePushHandler) (*KubernetesOperator, error) {
+func NewKubernetesOperator(sendDataHandler model.DataEntirePushHandler, notifyPluginHandler model.NotifyPluginHandler) (*KubernetesOperator, error) {
 	ctrl.SetLogger(&k8SLogger{
 		l:             logging.GetGlobalLogger(),
 		level:         logging.GetGlobalLoggerLevel(),
@@ -102,11 +103,12 @@ func NewKubernetesOperator(sendDataHandler model.DataEntirePushHandler) (*Kubern
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	k := &KubernetesOperator{
-		crdManager:      mgr,
-		controllers:     make(map[string]*CRDWatcher),
-		ctx:             ctx,
-		ctxCancel:       cancel,
-		sendDataHandler: sendDataHandler,
+		crdManager:          mgr,
+		controllers:         make(map[string]*CRDWatcher),
+		ctx:                 ctx,
+		ctxCancel:           cancel,
+		sendDataHandler:     sendDataHandler,
+		notifyPluginHandler: notifyPluginHandler,
 	}
 	return k, nil
 }
@@ -145,7 +147,7 @@ func (k *KubernetesOperator) RegisterWatcher(target model.SubscribeTarget) (*CRD
 			return nil, errors.New("CRD not supported: " + target.Kind)
 		}
 		// This kind of CRD has never been watched.
-		crdWatcher := NewCRDWatcher(k.crdManager, target.Kind, crdMetadata.Generator(), k.sendDataHandler)
+		crdWatcher := NewCRDWatcher(k.crdManager, target.Kind, crdMetadata.Generator(), k.sendDataHandler, k.notifyPluginHandler)
 		err = crdWatcher.AddSubscribeTarget(target)
 		if err != nil {
 			return nil, err
@@ -178,7 +180,7 @@ func (k *KubernetesOperator) AddWatcher(target model.SubscribeTarget) error {
 		if !crdSupports {
 			return errors.New("CRD not supported: " + target.Kind)
 		}
-		crdWatcher := NewCRDWatcher(k.crdManager, target.Kind, crdMetadata.Generator(), k.sendDataHandler)
+		crdWatcher := NewCRDWatcher(k.crdManager, target.Kind, crdMetadata.Generator(), k.sendDataHandler, k.notifyPluginHandler)
 		err = crdWatcher.AddSubscribeTarget(target)
 		if err != nil {
 			return err

@@ -98,6 +98,8 @@ func (p *PluginServer) InitPlugin() error {
 	// enadle builtin plugin
 	p.EnabledPlugin = append(p.EnabledPlugin, &EnabledPlugin{
 		PluginName: builtin.StreamServicePluginName,
+	}, &EnabledPlugin{
+		PluginName: builtin.RateLimitServicePluginName,
 	})
 	err = p.CreatePlugin()
 	if err != nil {
@@ -119,6 +121,16 @@ func (p *PluginServer) CreatePlugin() error {
 		case builtin.StreamServicePluginName:
 			co := &creatOption{
 				pluginSetName: builtin.StreamServicePluginSetName,
+				pluginType:    store.PluginTypeCompute,
+				executionDir:  "",
+			}
+			err := p.createplugin(enabledPlugin, co)
+			if err != nil {
+				return fmt.Errorf("error CreatePlugin: %w", err)
+			}
+		case builtin.RateLimitServicePluginName:
+			co := &creatOption{
+				pluginSetName: builtin.RateLimitServicePluginSetName,
 				pluginType:    store.PluginTypeCompute,
 				executionDir:  "",
 			}
@@ -175,7 +187,7 @@ func (p *PluginServer) registerPlugin(ctx context.Context, name string, client i
 
 func (p *PluginServer) GetPluginClient(name string) (interface{}, error) {
 	//keys := make([]string, 0, len(p.Client))
-	client := p.Client.RangePluginClient(name)
+	client := p.Client.RangePluginClientByName(name)
 	if client == nil {
 		return nil, fmt.Errorf("plugin %s not found", name)
 	}

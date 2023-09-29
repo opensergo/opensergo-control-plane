@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	stream_plugin "github.com/opensergo/opensergo-control-plane/pkg/plugin/pl/builtin/stream"
+	ratelimit_plugin "github.com/opensergo/opensergo-control-plane/pkg/plugin/pl/builtin/ratelimit"
+
 	"github.com/opensergo/opensergo-control-plane/pkg/plugin/pl/plugin"
 )
 
@@ -14,7 +15,7 @@ func main() {
 	//	Level:      hclog.Trace,
 	//	JSONFormat: true,
 	//}), plugin.WithLogger(log)
-	b := NewStreamPlugin()
+	b := NewBuiltinPlugin()
 	if err := plugin.ServePlugin(b); err != nil {
 		fmt.Println("Error serving plugin", err)
 		os.Exit(1)
@@ -23,15 +24,15 @@ func main() {
 }
 
 var (
-	_ stream_plugin.Stream = (*stream_plugin.StreamPluginServer)(nil)
+	_ ratelimit_plugin.RateLimit = (*ratelimit_plugin.RateLimitPluginServer)(nil)
 )
 
 type BuiltinPlugin struct {
-	*stream_plugin.StreamPluginServer
+	*ratelimit_plugin.RateLimitPluginServer
 }
 
-func NewStreamPlugin() *BuiltinPlugin {
+func NewBuiltinPlugin() *BuiltinPlugin {
 	return &BuiltinPlugin{
-		StreamPluginServer: &stream_plugin.StreamPluginServer{},
+		RateLimitPluginServer: &ratelimit_plugin.RateLimitPluginServer{},
 	}
 }

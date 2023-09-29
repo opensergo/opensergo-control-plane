@@ -5,6 +5,7 @@ import (
 	"os/exec"
 
 	"github.com/opensergo/opensergo-control-plane/pkg/plugin/pl/builtin"
+	ratelimit_plugin "github.com/opensergo/opensergo-control-plane/pkg/plugin/pl/builtin/ratelimit"
 	stream_plugin "github.com/opensergo/opensergo-control-plane/pkg/plugin/pl/builtin/stream"
 
 	"github.com/hashicorp/go-plugin"
@@ -32,12 +33,18 @@ func ServePlugin(svc any, opt ...Option) error {
 		}
 		plugins[builtin.StreamServicePluginSetName] = streamServiceServer
 	}
+	if ratelimitSvc, ok := svc.(ratelimit_plugin.RateLimit); ok {
+		ratelimitServiceServer, err := ratelimit_plugin.NewRateLimitPluginServiceServer(ratelimitSvc)
+		if err != nil {
+			return err
+		}
+		plugins[builtin.RateLimitServicePluginSetName] = ratelimitServiceServer
+	}
 
 	if len(plugins) == 0 {
 		return errors.New("no valid plugin server provided")
 	}
 
-	//opts.withLogger.Info("Info NewPluginServer")
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: HandshakeConfig,
 		VersionedPlugins: map[int]plugin.PluginSet{
@@ -60,11 +67,9 @@ func NewPluginClient(pluginPath string, setName string, opt ...Option) (*plugin.
 	switch setName {
 	case builtin.StreamServicePluginSetName:
 		set = plugin.PluginSet{builtin.StreamServicePluginSetName: &stream_plugin.StreamPlugin{}}
+	case builtin.RateLimitServicePluginSetName:
+		set = plugin.PluginSet{builtin.RateLimitServicePluginSetName: &ratelimit_plugin.RateLimitPlugin{}}
 	}
-
-	//fmt.Println("NewPluginClient")
-	//opts.withLogger.Info("Info NewPluginClient")
-	//opts.withLogger.Debug("Debug NewPluginClient")
 
 	return plugin.NewClient(&plugin.ClientConfig{
 		HandshakeConfig: HandshakeConfig,

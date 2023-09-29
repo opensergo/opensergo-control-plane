@@ -31,3 +31,5 @@ type OpenSergoTransportStream = trpb.OpenSergoUniversalTransportService_Subscrib
 type SubscribeRequestHandler func(ClientIdentifier, *trpb.SubscribeRequest, OpenSergoTransportStream) error
 
 type DataEntirePushHandler func(namespace, app, kind string, dataWithVersion *trpb.DataWithVersion, status *trpb.Status, respId string) error
+
+type NotifyPluginHandler func(pluginName string, e any) error

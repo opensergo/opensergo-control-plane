@@ -33,12 +33,24 @@ func (c *PluginClientRegistry) DeletePluginClient(id string) {
 	c.client.Delete(id)
 }
 
-func (c *PluginClientRegistry) RangePluginClient(name string) interface{} {
+func (c *PluginClientRegistry) RangePluginClientByName(name string) interface{} {
 	var client interface{}
 	c.client.Range(func(key, value interface{}) bool {
 		parts := strings.SplitN(key.(string), "-", 2)
 		prefix := parts[0]
 		if prefix == name {
+			client = value
+			return false
+		}
+		return true
+	})
+	return client
+}
+
+func (c *PluginClientRegistry) RangePluginClientByPublicID(publicID string) interface{} {
+	var client interface{}
+	c.client.Range(func(key, value interface{}) bool {
+		if key.(string) == publicID {
 			client = value
 			return false
 		}

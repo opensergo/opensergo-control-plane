@@ -4,7 +4,7 @@
 // - protoc             v3.19.4
 // source: stream.proto
 
-package stream
+package v1
 
 import (
 	context "context"
@@ -19,10 +19,10 @@ import (
 // Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
-// StreamGreeterClient is the client API for StreamGreeter service.
+// RateLimitServiceClient is the client API for StreamGreeter service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type StreamGreeterClient interface {
+type RateLimitServiceClient interface {
 	Greet(ctx context.Context, in *StreamReq, opts ...grpc.CallOption) (*StreamResp, error)
 }
 
@@ -30,7 +30,7 @@ type streamGreeterClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewStreamGreeterClient(cc grpc.ClientConnInterface) StreamGreeterClient {
+func NewStreamGreeterClient(cc grpc.ClientConnInterface) RateLimitServiceClient {
 	return &streamGreeterClient{cc}
 }
 
@@ -56,7 +56,7 @@ type UnimplementedStreamGreeterServer struct {
 }
 
 func (UnimplementedStreamGreeterServer) Greet(context.Context, *StreamReq) (*StreamResp, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Greet not implemented")
+	return nil, status.Errorf(codes.Unimplemented, "method RateLimit not implemented")
 }
 func (UnimplementedStreamGreeterServer) mustEmbedUnimplementedStreamGreeterServer() {}
 

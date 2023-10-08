@@ -17,9 +17,10 @@ package controller
 import (
 	"sync"
 
-	"github.com/opensergo/opensergo-control-plane/pkg/model"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/opensergo/opensergo-control-plane/pkg/model"
 )
 
 type CRDObjectsHolder struct {

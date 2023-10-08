@@ -21,8 +21,6 @@ import (
 
 	"github.com/alibaba/sentinel-golang/logging"
 	"github.com/alibaba/sentinel-golang/util"
-	crdv1alpha1 "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1"
-	crdv1alpha1traffic "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/traffic"
 	"github.com/opensergo/opensergo-control-plane/pkg/model"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,6 +28,9 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
 	// +kubebuilder:scaffold:imports
+
+	crdv1alpha1 "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1"
+	crdv1alpha1traffic "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/traffic"
 )
 
 var (

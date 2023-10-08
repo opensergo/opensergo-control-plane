@@ -16,25 +16,26 @@ package controller
 
 import (
 	"context"
-	trpb "github.com/opensergo/opensergo-control-plane/pkg/proto/transport/v1"
 	"log"
 	"net/http"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strconv"
 	"sync"
 
 	"github.com/go-logr/logr"
-	crdv1alpha1 "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1"
-	crdv1alpha1traffic "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/traffic"
-	"github.com/opensergo/opensergo-control-plane/pkg/model"
-	pb "github.com/opensergo/opensergo-control-plane/pkg/proto/fault_tolerance/v1"
-	"github.com/opensergo/opensergo-control-plane/pkg/util"
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	k8sApiError "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	crdv1alpha1 "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1"
+	crdv1alpha1traffic "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/traffic"
+	"github.com/opensergo/opensergo-control-plane/pkg/model"
+	pb "github.com/opensergo/opensergo-control-plane/pkg/proto/fault_tolerance/v1"
+	trpb "github.com/opensergo/opensergo-control-plane/pkg/proto/transport/v1"
+	"github.com/opensergo/opensergo-control-plane/pkg/util"
 )
 
 // CRDWatcher watches a specific kind of CRD.

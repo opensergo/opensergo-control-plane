@@ -3,21 +3,23 @@ package grpc
 import (
 	context "context"
 	"fmt"
-	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
-	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
-	extension "github.com/envoyproxy/go-control-plane/envoy/service/extension/v3"
-	"github.com/opensergo/opensergo-control-plane/pkg/model"
-	"github.com/opensergo/opensergo-control-plane/pkg/util"
-	uatomic "go.uber.org/atomic"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/peer"
-	"google.golang.org/protobuf/types/known/anypb"
 	"log"
 	"net"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
+	extension "github.com/envoyproxy/go-control-plane/envoy/service/extension/v3"
+	uatomic "go.uber.org/atomic"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/peer"
+	"google.golang.org/protobuf/types/known/anypb"
+
+	"github.com/opensergo/opensergo-control-plane/pkg/model"
+	"github.com/opensergo/opensergo-control-plane/pkg/util"
 )
 
 var connectionNumber = int64(0)
@@ -43,27 +45,13 @@ func (s *DiscoveryServer) Stream(stream model.DiscoveryStream) error {
 		peerAddr = peerInfo.Addr.String()
 	}
 
-	// TODO: Rate Limit
-	//if err := s.WaitForRequestLimit(stream.Context()); err != nil {
-	//	//log.Warnf("ADS: %q exceeded rate limit: %v", peerAddr, err)
-	//	return status.Errorf(codes.ResourceExhausted, "request rate limit exceeded: %v", err)
-	//}
-
 	con := model.NewConnection(peerAddr, stream)
 
 	go s.receive(con)
 
-	// Wait for the proxy to be fully initialized before we start serving traffic. Because
-	// initialization doesn't have dependencies that will block, there is no need to add any timeout
-	// here. Prior to this explicit wait, we were implicitly waiting by receive() not sending to
-	// reqChannel and the connection not being enqueued for pushes to pushChannel until the
-	// initialization is complete.
 	<-con.Initialized
 
 	for {
-		// Go select{} statements are not ordered; the same channel can be chosen many times.
-		// For requests, these are higher priority (client may be blocked on startup until these are done)
-		// and often very cheap to handle (simple ACK), so we check it first.
 		select {
 		case req, ok := <-con.ReqChan:
 			if ok {
@@ -126,11 +114,6 @@ func (s *DiscoveryServer) initConnection(node *core.Node, con *model.XDSConnecti
 	con.Identifier = connectionID(node.Id)
 	con.Node = node
 
-	// Register the connection. this allows pushes to be triggered for the proxy. Note: the timing of
-	// this and initializeProxy important. While registering for pushes *after* initialization is complete seems like
-	// a better choice, it introduces a race condition; If we complete initialization of a new push
-	// context between initializeProxy and addCon, we would not get any pushes triggered for the new
-	// push context, leading the proxy to have a stale state until the next full push.
 	s.addCon(con.Identifier, con)
 
 	defer close(con.Initialized)
@@ -199,9 +182,6 @@ func ShouldRespond(con *model.XDSConnection, request *discovery.DiscoveryRequest
 		}
 	}
 
-	// If there is mismatch in the nonce, that is a case of expired/stale nonce.
-	// A nonce becomes stale following a newer nonce being sent to Envoy.
-	// previousInfo.NonceSent can be empty if we previously had shouldRespond=true but didn't send any resources.
 	if request.ResponseNonce != previousInfo.NonceSent {
 
 		log.Println("ECDS: REQ %s Expired nonce received %s, sent %s",

@@ -1,10 +1,11 @@
 package model
 
 import (
-	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
-	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"sync"
 	"time"
+
+	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 )
 
 // XDSConnection represents a connection to the xDS server.
@@ -60,7 +61,7 @@ func NewConnection(peerAddr string, stream DiscoveryStream) *XDSConnection {
 func (conn *XDSConnection) Watched(typeUrl string) *WatchedResource {
 	conn.RLock()
 	defer conn.RUnlock()
-	if conn.WatchedResources != nil && conn.WatchedResources[typeUrl] != nil {
+	if conn.WatchedResources[typeUrl] != nil {
 		return conn.WatchedResources[typeUrl]
 	}
 	return nil

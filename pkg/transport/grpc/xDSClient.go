@@ -3,13 +3,15 @@ package grpc
 import (
 	"context"
 	"fmt"
+	"log"
+
 	v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	extension "github.com/envoyproxy/go-control-plane/envoy/service/extension/v3"
-	"github.com/opensergo/opensergo-control-plane/pkg/model"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"log"
+
+	"github.com/opensergo/opensergo-control-plane/pkg/model"
 )
 
 const delimiter = "/"

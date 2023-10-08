@@ -17,9 +17,10 @@ package grpc
 import (
 	"sync"
 
+	"github.com/pkg/errors"
+
 	"github.com/opensergo/opensergo-control-plane/pkg/model"
 	pb "github.com/opensergo/opensergo-control-plane/pkg/proto/transport/v1"
-	"github.com/pkg/errors"
 )
 
 type OpenSergoTransportStream = pb.OpenSergoUniversalTransportService_SubscribeConfigServer

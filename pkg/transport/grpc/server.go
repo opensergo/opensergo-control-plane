@@ -20,11 +20,12 @@ import (
 	"log"
 	"net"
 
+	"go.uber.org/atomic"
+	"google.golang.org/grpc"
+
 	"github.com/opensergo/opensergo-control-plane/pkg/model"
 	trpb "github.com/opensergo/opensergo-control-plane/pkg/proto/transport/v1"
 	"github.com/opensergo/opensergo-control-plane/pkg/util"
-	"go.uber.org/atomic"
-	"google.golang.org/grpc"
 )
 
 const (

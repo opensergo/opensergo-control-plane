@@ -15,20 +15,22 @@
 package opensergo
 
 import (
-	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
-	"github.com/opensergo/opensergo-control-plane/pkg/util"
-	"google.golang.org/protobuf/types/known/anypb"
+	"fmt"
 	"log"
 	"os"
 	"strings"
 	"sync"
+
+	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
+	"github.com/pkg/errors"
+	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/opensergo/opensergo-control-plane/pkg/controller"
 	"github.com/opensergo/opensergo-control-plane/pkg/model"
 	trpb "github.com/opensergo/opensergo-control-plane/pkg/proto/transport/v1"
 	"github.com/opensergo/opensergo-control-plane/pkg/transport/grpc"
 	transport "github.com/opensergo/opensergo-control-plane/pkg/transport/grpc"
-	"github.com/pkg/errors"
+	"github.com/opensergo/opensergo-control-plane/pkg/util"
 )
 
 const delimiter = "/"
@@ -40,6 +42,12 @@ type ControlPlane struct {
 	protoDesc *trpb.ControlPlaneDesc
 
 	mux sync.RWMutex
+}
+
+type Request struct {
+	Kind      string
+	AppName   string
+	Namespace string
 }
 
 func NewControlPlane() (*ControlPlane, error) {
@@ -145,13 +153,16 @@ func (c *ControlPlane) handleXDSSubscribeRequest(req *discovery.DiscoveryRequest
 		var rules []*anypb.Any
 		for resourcename := range subscribed {
 			// Split the resource name into its components.
-			request := strings.Split(resourcename, delimiter)
+			request, err := splitRequest(resourcename)
+			if err != nil {
+				continue
+			}
 
 			// Register a watcher for the specified resource.
 			crdWatcher, err := c.operator.RegisterWatcher(model.SubscribeTarget{
-				Namespace: request[4],
-				AppName:   request[3],
-				Kind:      request[0] + delimiter + request[1] + delimiter + request[2],
+				Namespace: request.Namespace,
+				AppName:   request.AppName,
+				Kind:      request.Kind,
 			})
 
 			if err != nil {
@@ -161,12 +172,12 @@ func (c *ControlPlane) handleXDSSubscribeRequest(req *discovery.DiscoveryRequest
 			}
 
 			// Add the connection to the connection map.
-			c.xdsServer.AddConnectionToMap(request[4], request[3], request[0]+"/"+request[1]+"/"+request[2], con)
+			c.xdsServer.AddConnectionToMap(request.Namespace, request.AppName, request.Kind, con)
 
 			// Get the current rules for the resource.
 			curRules, _ := crdWatcher.GetRules(model.NamespacedApp{
-				Namespace: request[4],
-				App:       request[3],
+				Namespace: request.Namespace,
+				App:       request.AppName,
 			})
 
 			if len(curRules) > 0 {
@@ -303,4 +314,19 @@ func (c *ControlPlane) pushXds(namespace, app, kind string, rules []*anypb.Any) 
 
 	// Return nil to indicate success.
 	return nil
+}
+
+func splitRequest(request string) (req Request, err error) {
+	requestArray := strings.Split(request, delimiter)
+	if len(requestArray) != 5 {
+		return req, fmt.Errorf("invalid request format")
+	}
+
+	req = Request{
+		Kind:      requestArray[0] + delimiter + requestArray[1] + delimiter + requestArray[2],
+		AppName:   requestArray[3],
+		Namespace: requestArray[4],
+	}
+
+	return req, nil
 }

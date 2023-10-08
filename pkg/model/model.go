@@ -17,9 +17,10 @@ package model
 import (
 	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	extension "github.com/envoyproxy/go-control-plane/envoy/service/extension/v3"
+	"google.golang.org/protobuf/types/known/anypb"
+
 	trpb "github.com/opensergo/opensergo-control-plane/pkg/proto/transport/v1"
 	"github.com/opensergo/opensergo-control-plane/pkg/util"
-	"google.golang.org/protobuf/types/known/anypb"
 )
 
 // Users could control this variable to determine whether use

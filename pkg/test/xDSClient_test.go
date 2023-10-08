@@ -1,10 +1,11 @@
 package test
 
 import (
-	"github.com/opensergo/opensergo-control-plane/pkg/controller"
-	"github.com/opensergo/opensergo-control-plane/pkg/transport/grpc"
 	"log"
 	"testing"
+
+	"github.com/opensergo/opensergo-control-plane/pkg/controller"
+	"github.com/opensergo/opensergo-control-plane/pkg/transport/grpc"
 )
 
 func TestXDSClient(t *testing.T) {

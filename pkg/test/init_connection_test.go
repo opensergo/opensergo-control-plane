@@ -3,16 +3,18 @@ package test
 import (
 	"context"
 	"fmt"
-	v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
-	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
-	extension "github.com/envoyproxy/go-control-plane/envoy/service/extension/v3"
-	"github.com/opensergo/opensergo-control-plane/pkg/controller"
-	"github.com/opensergo/opensergo-control-plane/pkg/model"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"testing"
 	"time"
+
+	v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
+	extension "github.com/envoyproxy/go-control-plane/envoy/service/extension/v3"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/opensergo/opensergo-control-plane/pkg/controller"
+	"github.com/opensergo/opensergo-control-plane/pkg/model"
 )
 
 // test connection init

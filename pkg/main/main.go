@@ -24,9 +24,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	err = cp.Start()
-
 	if err != nil {
 		log.Fatal(err)
 	}

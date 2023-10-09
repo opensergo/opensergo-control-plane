@@ -10,7 +10,7 @@ import (
 
 func TestXDSClient(t *testing.T) {
 	// Define the address of the server
-	serverAddr := ":8002" // Replace with the actual address
+	serverAddr := ":10248" // Replace with the actual address
 
 	// Create a new XDSClient instance
 	client := grpc.NewxDSClient(serverAddr, "testNode", []string{controller.FaultToleranceRuleKind, controller.ThrottlingStrategyKind})

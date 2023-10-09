@@ -59,7 +59,7 @@ func NewControlPlane() (*ControlPlane, error) {
 	}
 
 	cp.server = transport.NewServer(uint32(10246), []model.SubscribeRequestHandler{cp.handleSubscribeRequest})
-	cp.xdsServer = transport.NewDiscoveryServer(uint32(8002), []model.SubscribeXDsRequestHandler{cp.handleXDSSubscribeRequest})
+	cp.xdsServer = transport.NewDiscoveryServer(uint32(10248), []model.SubscribeXDsRequestHandler{cp.handleXDSSubscribeRequest})
 	cp.operator = operator
 
 	hostname, herr := os.Hostname()

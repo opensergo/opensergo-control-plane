@@ -19,7 +19,7 @@ import (
 
 // test connection init
 func TestInitConnection(t *testing.T) {
-	conn, err := grpc.Dial(":8002", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(":10248", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatal("服务端出错，连接不上", err)
 	}
@@ -55,7 +55,7 @@ func TestInitConnection(t *testing.T) {
 }
 
 func TestMultiConnection(t *testing.T) {
-	firstconn, err := grpc.Dial(":8002", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	firstconn, err := grpc.Dial(":10248", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatal("服务端出错，连接不上", err)
 	}
@@ -91,7 +91,7 @@ func TestMultiConnection(t *testing.T) {
 }
 
 func TestResponseNonce(t *testing.T) {
-	conn, err := grpc.Dial(":8002", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(":10248", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatal("服务端出错，连接不上", err)
 	}
@@ -137,7 +137,7 @@ func TestResponseNonce(t *testing.T) {
 }
 
 func TestSubScribetionChange(t *testing.T) {
-	conn, err := grpc.Dial(":8002", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(":10248", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatal("服务端出错，连接不上", err)
 	}

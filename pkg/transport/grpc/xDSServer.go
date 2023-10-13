@@ -184,7 +184,7 @@ func ShouldRespond(con *model.XDSConnection, request *discovery.DiscoveryRequest
 
 	if request.ResponseNonce != previousInfo.NonceSent {
 
-		log.Println("ECDS: REQ %s Expired nonce received %s, sent %s",
+		log.Printf("ECDS: REQ %s Expired nonce received %s, sent %s",
 			con.Identifier, request.ResponseNonce, previousInfo.NonceSent)
 		return false, emptyResourceDelta
 	}

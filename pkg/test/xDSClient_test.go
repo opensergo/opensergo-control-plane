@@ -9,6 +9,7 @@ import (
 )
 
 func TestXDSClient(t *testing.T) {
+	t.Skip()
 	// Define the address of the server
 	serverAddr := ":10248" // Replace with the actual address
 

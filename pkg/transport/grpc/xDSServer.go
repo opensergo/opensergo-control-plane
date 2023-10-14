@@ -70,7 +70,6 @@ func (s *DiscoveryServer) Stream(stream model.DiscoveryStream) error {
 
 	}
 
-	return nil
 }
 
 func (s *DiscoveryServer) receive(con *model.XDSConnection) {

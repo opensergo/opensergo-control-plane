@@ -198,10 +198,12 @@ func (c *ControlPlane) handleXDSSubscribeRequest(req *discovery.DiscoveryRequest
 		// Handle unsubscribed resources.
 		for resourcename := range unsubscribed {
 			// Split the resource name into its components.
-			request := strings.Split(resourcename, delimiter)
-
+			request, err := splitRequest(resourcename)
+			if err != nil {
+				continue
+			}
 			// Remove the connection from the connection map.
-			c.xdsServer.RemoveConnectionFromMap(model.NamespacedApp{request[0], request[1]}, request[2], con.Identifier)
+			c.xdsServer.RemoveConnectionFromMap(model.NamespacedApp{Namespace: request.Namespace, App: request.AppName}, request.Kind, con.Identifier)
 		}
 	}
 

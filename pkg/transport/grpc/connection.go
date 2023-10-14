@@ -17,9 +17,10 @@ package grpc
 import (
 	"sync"
 
+	"github.com/pkg/errors"
+
 	"github.com/opensergo/opensergo-control-plane/pkg/model"
 	pb "github.com/opensergo/opensergo-control-plane/pkg/proto/transport/v1"
-	"github.com/pkg/errors"
 )
 
 type OpenSergoTransportStream = pb.OpenSergoUniversalTransportService_SubscribeConfigServer
@@ -43,7 +44,12 @@ func (c *Connection) IsValid() bool {
 	return c.stream != nil && c.valid
 }
 
-type ConnectionMap map[model.ClientIdentifier]*Connection
+type mapValue interface {
+	interface {
+		*Connection | *model.XDSConnection
+	}
+}
+type ConnectionMap[T mapValue] map[model.ClientIdentifier]T
 
 func NewConnection(identifier model.ClientIdentifier, stream OpenSergoTransportStream) *Connection {
 	return &Connection{
@@ -53,10 +59,10 @@ func NewConnection(identifier model.ClientIdentifier, stream OpenSergoTransportS
 	}
 }
 
-type ConnectionManager struct {
+type ConnectionManager[T mapValue] struct {
 	// connectionMap is used to save the connections which subscribed to the same namespace, app and kind.
 	// (namespace+app, (kind, connections...))
-	connectionMap map[model.NamespacedApp]map[string]ConnectionMap
+	connectionMap map[model.NamespacedApp]map[string]ConnectionMap[T]
 	// identifier: NamespaceApp: kinds
 	// The identifier is used to distinguish the requested process instance and remove stream when disconnected
 	identifierMap map[model.ClientIdentifier]map[model.NamespacedApp][]string
@@ -64,7 +70,7 @@ type ConnectionManager struct {
 	updateMux sync.RWMutex
 }
 
-func (c *ConnectionManager) Add(namespace, app, kind string, connection *Connection) error {
+func (c *ConnectionManager[T]) Add(namespace, app, kind string, connection T, identifier model.ClientIdentifier) error {
 	if connection == nil {
 		return errors.New("nil connection")
 	}
@@ -77,27 +83,27 @@ func (c *ConnectionManager) Add(namespace, app, kind string, connection *Connect
 		App:       app,
 	}
 	if c.connectionMap[nsa] == nil {
-		c.connectionMap[nsa] = make(map[string]ConnectionMap)
+		c.connectionMap[nsa] = make(map[string]ConnectionMap[T])
 	}
 	connectionMap := c.connectionMap[nsa][kind]
 	if connectionMap == nil {
-		connectionMap = make(ConnectionMap)
+		connectionMap = make(ConnectionMap[T])
 		c.connectionMap[nsa][kind] = connectionMap
 	}
-	if connectionMap[connection.identifier] == nil {
-		connectionMap[connection.identifier] = connection
+	if connectionMap[identifier] == nil {
+		connectionMap[identifier] = connection
 	}
 
 	// TODO: legacy logic, rearrange it later
-	if c.identifierMap[connection.identifier] == nil {
-		c.identifierMap[connection.identifier] = make(map[model.NamespacedApp][]string)
+	if c.identifierMap[identifier] == nil {
+		c.identifierMap[identifier] = make(map[model.NamespacedApp][]string)
 	}
-	c.identifierMap[connection.identifier][nsa] = append(c.identifierMap[connection.identifier][nsa], kind)
+	c.identifierMap[identifier][nsa] = append(c.identifierMap[identifier][nsa], kind)
 
 	return nil
 }
 
-func (c *ConnectionManager) Get(namespace, app, kind string) ([]*Connection, bool) {
+func (c *ConnectionManager[T]) Get(namespace, app, kind string) ([]T, bool) {
 	c.updateMux.RLock()
 	defer c.updateMux.RUnlock()
 
@@ -112,18 +118,19 @@ func (c *ConnectionManager) Get(namespace, app, kind string) ([]*Connection, boo
 	if !exists || connectionMap == nil {
 		return nil, false
 	}
-	connectionList := make([]*Connection, len(connectionMap))
+
+	connectionList := make([]T, len(connectionMap))
 	for _, conn := range connectionMap {
-		if conn.IsValid() {
-			connectionList = append(connectionList, conn)
-		}
+		connectionList = append(connectionList, conn)
 	}
 	return connectionList, true
 }
 
-func (c *ConnectionManager) removeInternal(n model.NamespacedApp, kind string, identifier model.ClientIdentifier) error {
+func (c *ConnectionManager[mapValue]) removeInternal(n model.NamespacedApp, kind string, identifier model.ClientIdentifier) error {
 	// Guarded in the outer function, if a lock is added here, it will deadlock
 	kindMap, exists := c.connectionMap[n]
+
+	// TODO: handle error
 	if !exists || kindMap == nil {
 		return nil
 	}
@@ -135,7 +142,7 @@ func (c *ConnectionManager) removeInternal(n model.NamespacedApp, kind string, i
 	return nil
 }
 
-func (c *ConnectionManager) RemoveByIdentifier(identifier model.ClientIdentifier) error {
+func (c *ConnectionManager[mapValue]) RemoveByIdentifier(identifier model.ClientIdentifier) error {
 	c.updateMux.Lock()
 	defer c.updateMux.Unlock()
 
@@ -154,9 +161,9 @@ func (c *ConnectionManager) RemoveByIdentifier(identifier model.ClientIdentifier
 	return nil
 }
 
-func NewConnectionManager() *ConnectionManager {
-	return &ConnectionManager{
-		connectionMap: make(map[model.NamespacedApp]map[string]ConnectionMap),
+func NewConnectionManager[T mapValue]() *ConnectionManager[T] {
+	return &ConnectionManager[T]{
+		connectionMap: make(map[model.NamespacedApp]map[string]ConnectionMap[T]),
 		identifierMap: make(map[model.ClientIdentifier]map[model.NamespacedApp][]string),
 	}
 }

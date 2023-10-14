@@ -15,9 +15,8 @@
 package main
 
 import (
-	"log"
-
 	"github.com/opensergo/opensergo-control-plane"
+	"log"
 )
 
 func main() {

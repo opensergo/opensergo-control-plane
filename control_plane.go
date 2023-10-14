@@ -15,35 +15,51 @@
 package opensergo
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"strings"
 	"sync"
+
+	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
+	"github.com/pkg/errors"
+	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/opensergo/opensergo-control-plane/pkg/controller"
 	"github.com/opensergo/opensergo-control-plane/pkg/model"
 	trpb "github.com/opensergo/opensergo-control-plane/pkg/proto/transport/v1"
+	"github.com/opensergo/opensergo-control-plane/pkg/transport/grpc"
 	transport "github.com/opensergo/opensergo-control-plane/pkg/transport/grpc"
-	"github.com/pkg/errors"
+	"github.com/opensergo/opensergo-control-plane/pkg/util"
 )
 
-type ControlPlane struct {
-	operator *controller.KubernetesOperator
-	server   *transport.Server
+const delimiter = "/"
 
+type ControlPlane struct {
+	operator  *controller.KubernetesOperator
+	server    *transport.Server
+	xdsServer *transport.DiscoveryServer
 	protoDesc *trpb.ControlPlaneDesc
 
 	mux sync.RWMutex
 }
 
+type Request struct {
+	Kind      string
+	AppName   string
+	Namespace string
+}
+
 func NewControlPlane() (*ControlPlane, error) {
 	cp := &ControlPlane{}
 
-	operator, err := controller.NewKubernetesOperator(cp.sendMessage)
+	operator, err := controller.NewKubernetesOperator(cp.sendMessage, cp.pushXds)
 	if err != nil {
 		return nil, err
 	}
 
 	cp.server = transport.NewServer(uint32(10246), []model.SubscribeRequestHandler{cp.handleSubscribeRequest})
+	cp.xdsServer = transport.NewDiscoveryServer(uint32(10248), []model.SubscribeXDsRequestHandler{cp.handleXDSSubscribeRequest})
 	cp.operator = operator
 
 	hostname, herr := os.Hostname()
@@ -59,13 +75,23 @@ func NewControlPlane() (*ControlPlane, error) {
 func (c *ControlPlane) Start() error {
 	// Run the Kubernetes operator
 	err := c.operator.Run()
+
 	if err != nil {
 		return err
 	}
-	// Run the transport server
-	err = c.server.Run()
-	if err != nil {
-		return err
+
+	if model.GlobalBoolVariable {
+		//Run the transport server
+		err = c.server.Run()
+		if err != nil {
+			return err
+		}
+	} else {
+		//Run the xDS Server
+		err = c.xdsServer.Run()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -106,16 +132,85 @@ func (c *ControlPlane) sendMessageToStream(stream model.OpenSergoTransportStream
 	})
 }
 
+// handleXDSSubscribeRequest handles the XDS subscription request.
+func (c *ControlPlane) handleXDSSubscribeRequest(req *discovery.DiscoveryRequest, con *model.XDSConnection) error {
+	// Check if the request is for ExtensionConfigType.
+	if req.TypeUrl != model.ExtensionConfigType {
+		return nil
+	}
+
+	// Determine whether to respond and calculate the delta.
+	shouldRespond, delta := grpc.ShouldRespond(con, req)
+	subscribed := delta.Subscribed
+	unsubscribed := delta.Unsubscribed
+
+	if !shouldRespond {
+		// If there's no need to respond, return early.
+		return nil
+	}
+
+	if len(subscribed) != 0 {
+		var rules []*anypb.Any
+		for resourcename := range subscribed {
+			// Split the resource name into its components.
+			request, err := splitRequest(resourcename)
+			if err != nil {
+				continue
+			}
+
+			// Register a watcher for the specified resource.
+			crdWatcher, err := c.operator.RegisterWatcher(model.SubscribeTarget{
+				Namespace: request.Namespace,
+				AppName:   request.AppName,
+				Kind:      request.Kind,
+			})
+
+			if err != nil {
+				// Log the error and continue to the next resource.
+				log.Printf("Error registering watcher for resource %s: %s\n", resourcename, err.Error())
+				continue
+			}
+
+			// Add the connection to the connection map.
+			c.xdsServer.AddConnectionToMap(request.Namespace, request.AppName, request.Kind, con)
+
+			// Get the current rules for the resource.
+			curRules, _ := crdWatcher.GetRules(model.NamespacedApp{
+				Namespace: request.Namespace,
+				App:       request.AppName,
+			})
+
+			if len(curRules) > 0 {
+				// Append the current rules to the rules slice.
+				rules = append(rules, curRules...)
+			}
+		}
+
+		// Push XDS rules to the connection.
+		err := c.pushXdsToStream(con, con.Watched(req.TypeUrl), rules)
+		if err != nil {
+			// Log the error if pushing XDS rules fails.
+			log.Printf("Failed to push XDS rules to connection: %s\n", err.Error())
+		}
+	}
+
+	if len(unsubscribed) != 0 {
+		// Handle unsubscribed resources.
+		for resourcename := range unsubscribed {
+			// Split the resource name into its components.
+			request, err := splitRequest(resourcename)
+			if err != nil {
+				continue
+			}
+			// Remove the connection from the connection map.
+			c.xdsServer.RemoveConnectionFromMap(model.NamespacedApp{Namespace: request.Namespace, App: request.AppName}, request.Kind, con.Identifier)
+		}
+	}
+
+	return nil
+}
+
 func (c *ControlPlane) handleSubscribeRequest(clientIdentifier model.ClientIdentifier, request *trpb.SubscribeRequest, stream model.OpenSergoTransportStream) error {
-	// var labels []model.LabelKV
-	// if request.Target.Labels != nil {
-	//	for _, label := range request.Target.Labels {
-	//		labels = append(labels, model.LabelKV{
-	//			Key:   label.Key,
-	//			Value: label.Value,
-	//		})
-	//	}
-	// }
 	for _, kind := range request.Target.Kinds {
 		crdWatcher, err := c.operator.RegisterWatcher(model.SubscribeTarget{
 			Namespace: request.Target.Namespace,
@@ -135,7 +230,8 @@ func (c *ControlPlane) handleSubscribeRequest(clientIdentifier model.ClientIdent
 			}
 			continue
 		}
-		_ = c.server.ConnectionManager().Add(request.Target.Namespace, request.Target.App, kind, transport.NewConnection(clientIdentifier, stream))
+		curConnection := transport.NewConnection(clientIdentifier, stream)
+		_ = c.server.ConnectionManager().Add(request.Target.Namespace, request.Target.App, kind, curConnection, curConnection.Identifier())
 		// send if the watcher cache is not empty
 		rules, version := crdWatcher.GetRules(model.NamespacedApp{
 			Namespace: request.Target.Namespace,
@@ -159,4 +255,80 @@ func (c *ControlPlane) handleSubscribeRequest(clientIdentifier model.ClientIdent
 		}
 	}
 	return nil
+}
+
+func (c *ControlPlane) pushXdsToStream(con *model.XDSConnection, w *model.WatchedResource, rules []*anypb.Any) error {
+	res := &discovery.DiscoveryResponse{
+		TypeUrl:     w.TypeUrl,
+		VersionInfo: c.xdsServer.NextVersion(),
+
+		// TODO: RECORD THE NONCE AND CHECK THE NONCE
+		Nonce:     util.Nonce(),
+		Resources: rules,
+	}
+
+	// Set nonce in the XDSConnection's WatchedResource
+	con.Lock()
+	if con.WatchedResources[model.ExtensionConfigType] == nil {
+		con.WatchedResources[res.TypeUrl] = &model.WatchedResource{TypeUrl: res.TypeUrl}
+	}
+	con.WatchedResources[res.TypeUrl].NonceSent = res.Nonce
+	con.Unlock()
+
+	// Send the DiscoveryResponse over the stream
+	err := con.Stream.Send(res)
+	if err != nil {
+		// Handle the error, e.g., log it or return it
+		// TODO: You can log the error or handle it as needed.
+		log.Println("Failed to send DiscoveryResponse:", err)
+		return err
+	}
+
+	return nil
+}
+
+func (c *ControlPlane) pushXds(namespace, app, kind string, rules []*anypb.Any) error {
+	// Retrieve the XDS connections for the specified namespace, app, and kind.
+	connections, exists := c.xdsServer.XDSConnectionManager.Get(namespace, app, kind)
+	if !exists || connections == nil {
+		// Log that there is no connection for this kind.
+		// Replace this with your actual logging mechanism.
+		log.Println("No XDS connection found for namespace:", namespace, "app:", app, "kind:", kind)
+		return errors.New("There is no connection for this kind")
+	}
+
+	for _, connection := range connections {
+		if connection == nil {
+			// Log a debug message for a nil connection.
+			// Replace this with your actual logging mechanism.
+			log.Println("Encountered a nil XDS connection")
+			continue
+		}
+		err := c.pushXdsToStream(connection, connection.WatchedResources[model.ExtensionConfigType], rules)
+		if err != nil {
+			// Log an error and return it if there is an error pushing XDS rules.
+			// Replace this with your actual logging mechanism.
+			log.Println("Failed to push XDS rules to connection:", err)
+			// TODO: You might want to consider handling partial failures here.
+			return err
+		}
+	}
+
+	// Return nil to indicate success.
+	return nil
+}
+
+func splitRequest(request string) (req Request, err error) {
+	requestArray := strings.Split(request, delimiter)
+	if len(requestArray) != 5 {
+		return req, fmt.Errorf("invalid request format")
+	}
+
+	req = Request{
+		Kind:      requestArray[0] + delimiter + requestArray[1] + delimiter + requestArray[2],
+		AppName:   requestArray[3],
+		Namespace: requestArray[4],
+	}
+
+	return req, nil
 }

@@ -17,9 +17,10 @@ package controller
 import (
 	"sync"
 
-	"github.com/opensergo/opensergo-control-plane/pkg/model"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/opensergo/opensergo-control-plane/pkg/model"
 )
 
 type CRDObjectsHolder struct {
@@ -27,6 +28,7 @@ type CRDObjectsHolder struct {
 	version int64
 }
 
+// TODO: need use generic to support two kinds of connection xDS Connection and normal Connection
 // CRDCache caches versioned CRD objects in local.
 type CRDCache struct {
 	kind string

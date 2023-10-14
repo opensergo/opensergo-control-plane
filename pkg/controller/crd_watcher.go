@@ -22,12 +22,6 @@ import (
 	"sync"
 
 	"github.com/go-logr/logr"
-	crdv1alpha1 "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1"
-	crdv1alpha1traffic "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/traffic"
-	"github.com/opensergo/opensergo-control-plane/pkg/model"
-	pb "github.com/opensergo/opensergo-control-plane/pkg/proto/fault_tolerance/v1"
-	trpb "github.com/opensergo/opensergo-control-plane/pkg/proto/transport/v1"
-	"github.com/opensergo/opensergo-control-plane/pkg/util"
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -35,6 +29,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	crdv1alpha1 "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1"
+	crdv1alpha1traffic "github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/traffic"
+	"github.com/opensergo/opensergo-control-plane/pkg/model"
+	pb "github.com/opensergo/opensergo-control-plane/pkg/proto/fault_tolerance/v1"
+	trpb "github.com/opensergo/opensergo-control-plane/pkg/proto/transport/v1"
+	"github.com/opensergo/opensergo-control-plane/pkg/util"
 )
 
 // CRDWatcher watches a specific kind of CRD.
@@ -49,14 +50,18 @@ type CRDWatcher struct {
 	crdCache *CRDCache
 
 	// subscribedList consists of all subscribed target of current kind of CRD.
-	subscribedList       map[model.SubscribeTarget]bool
+	subscribedList map[model.SubscribeTarget]bool
+
 	subscribedNamespaces map[string]bool
-	subscribedApps       map[model.NamespacedApp]bool
+
+	numberOfAppsInNamedspaces map[string]int
+
+	subscribedApps map[model.NamespacedApp]bool
 
 	crdGenerator    func() client.Object
 	sendDataHandler model.DataEntirePushHandler
-
-	updateMux sync.RWMutex
+	xDSPushHandler  model.XDSPushHandler
+	updateMux       sync.RWMutex
 }
 
 const (
@@ -88,16 +93,44 @@ func (r *CRDWatcher) AddSubscribeTarget(target model.SubscribeTarget) error {
 	}
 	r.updateMux.Lock()
 	defer r.updateMux.Unlock()
-
 	r.subscribedList[target] = true
 	r.subscribedNamespaces[target.Namespace] = true
 	r.subscribedApps[target.NamespacedApp()] = true
-
+	r.numberOfAppsInNamedspaces[target.Namespace]++
 	return nil
 }
 
 func (r *CRDWatcher) RemoveSubscribeTarget(target model.SubscribeTarget) error {
 	// TODO: implement me
+	if target.Kind != r.kind {
+		return errors.New("target kind mismatch, expected: " + target.Kind + ", r.kind: " + r.kind)
+	}
+	r.updateMux.Lock()
+	defer r.updateMux.Unlock()
+
+	// remove target from subscribedList
+	curNamespace := target.Namespace
+	if _, ok := r.subscribedList[target]; !ok {
+		// not exist
+		return errors.New("didn't susbscribe this object before")
+	}
+	r.subscribedList[target] = false
+
+	// remove subscribed namespace
+	numberofApps := r.numberOfAppsInNamedspaces[curNamespace]
+	if numberofApps == 1 {
+		r.subscribedNamespaces[curNamespace] = false
+	}
+	if numberofApps > 0 {
+		r.numberOfAppsInNamedspaces[curNamespace]--
+	}
+
+	// remove namedspaceApp
+	if _, ok := r.subscribedApps[target.NamespacedApp()]; !ok {
+		// not exist
+		return errors.New("didn't susbscribe this object before")
+	}
+	r.subscribedApps[target.NamespacedApp()] = false
 
 	return nil
 }
@@ -184,18 +217,27 @@ func (r *CRDWatcher) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		Namespace: req.Namespace,
 		App:       app,
 	}
-	// TODO: Now we can do something for the crd object!
+	//// TODO: Now we can do something for the crd object!
 	rules, version := r.GetRules(nsa)
-	status := &trpb.Status{
-		Code:    int32(200),
-		Message: "Get and send rule success",
-		Details: nil,
+
+	// If GlobalBoolVariable is True send data to native server else send data to xdsserver
+	if model.GlobalBoolVariable {
+		status := &trpb.Status{
+			Code:    int32(200),
+			Message: "Get and send rule success",
+			Details: nil,
+		}
+		dataWithVersion := &trpb.DataWithVersion{Data: rules, Version: version}
+		if err := r.sendDataHandler(req.Namespace, app, r.kind, dataWithVersion, status, ""); err != nil {
+			logger.Error(err, "Failed to send rules", "kind", r.kind)
+		}
+	} else {
+		// push xds rules
+		if err := r.xDSPushHandler(req.Namespace, app, r.kind, rules); err != nil {
+			logger.Error(err, "Failed to pushxds rules", "kind", r.kind)
+		}
 	}
-	dataWithVersion := &trpb.DataWithVersion{Data: rules, Version: version}
-	err := r.sendDataHandler(req.Namespace, app, r.kind, dataWithVersion, status, "")
-	if err != nil {
-		logger.Error(err, "Failed to send rules", "kind", r.kind)
-	}
+
 	return ctrl.Result{}, nil
 }
 
@@ -325,20 +367,21 @@ func (r *CRDWatcher) translateCrdToProto(object client.Object) (*anypb.Any, erro
 		return nil, err
 	}
 	return packRule, nil
-
 }
 
-func NewCRDWatcher(crdManager ctrl.Manager, kind model.SubscribeKind, crdGenerator func() client.Object, sendDataHandler model.DataEntirePushHandler) *CRDWatcher {
+func NewCRDWatcher(crdManager ctrl.Manager, kind model.SubscribeKind, crdGenerator func() client.Object, sendDataHandler model.DataEntirePushHandler, xdspushhandler model.XDSPushHandler) *CRDWatcher {
 	return &CRDWatcher{
-		kind:                 kind,
-		Client:               crdManager.GetClient(),
-		logger:               ctrl.Log.WithName("controller").WithName(kind),
-		scheme:               crdManager.GetScheme(),
-		subscribedList:       make(map[model.SubscribeTarget]bool, 4),
-		subscribedNamespaces: make(map[string]bool),
-		subscribedApps:       make(map[model.NamespacedApp]bool),
-		crdGenerator:         crdGenerator,
-		crdCache:             NewCRDCache(kind),
-		sendDataHandler:      sendDataHandler,
+		kind:                      kind,
+		Client:                    crdManager.GetClient(),
+		logger:                    ctrl.Log.WithName("controller").WithName(kind),
+		scheme:                    crdManager.GetScheme(),
+		subscribedList:            make(map[model.SubscribeTarget]bool, 4),
+		subscribedNamespaces:      make(map[string]bool),
+		subscribedApps:            make(map[model.NamespacedApp]bool),
+		numberOfAppsInNamedspaces: make(map[string]int),
+		crdGenerator:              crdGenerator,
+		crdCache:                  NewCRDCache(kind),
+		sendDataHandler:           sendDataHandler,
+		xDSPushHandler:            xdspushhandler,
 	}
 }

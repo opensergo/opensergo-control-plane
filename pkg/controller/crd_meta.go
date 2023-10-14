@@ -15,9 +15,10 @@
 package controller
 
 import (
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	"github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1"
 	"github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1/traffic"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type CRDKind = string

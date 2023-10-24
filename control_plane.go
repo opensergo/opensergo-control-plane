@@ -119,30 +119,10 @@ func (c *ControlPlane) sendMessage(namespace, app, kind string, dataWithVersion 
 	return nil
 }
 
-type say struct{}
-
-func (s *say) Say(ss string) string {
-	return ss + "这是一个后缀v2"
-}
-
 func (c *ControlPlane) sendMessageToStream(stream model.OpenSergoTransportStream, namespace, app, kind string, dataWithVersion *trpb.DataWithVersion, status *trpb.Status, respId string) error {
 	if stream == nil {
 		return nil
 	}
-	//client, err := c.server.PluginServer.GetPluginClient("stream")
-	//if err != nil {
-	//	log.Printf("Error:%s\n", err.Error())
-	//}
-	//raw, ok := client.(stream_plugin.Stream)
-	//if !ok {
-	//	log.Printf("Error: %s\n", "can't convert rpc plugin to normal wrapper")
-	//}
-	//sa := &say{}
-	//greet, err := raw.Greeter("这是一个前缀", sa)
-	//if err != nil {
-	//	log.Printf("Error: %s\n", err.Error())
-	//}
-	//log.Printf("Greeting: %s\n", greet)
 
 	return stream.SendMsg(&trpb.SubscribeResponse{
 		Status:          status,

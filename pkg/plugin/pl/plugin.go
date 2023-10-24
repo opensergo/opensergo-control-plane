@@ -182,11 +182,9 @@ func (p *PluginServer) registerPlugin(ctx context.Context, name string, client i
 		return nil, err
 	}
 	return plg, nil
-
 }
 
 func (p *PluginServer) GetPluginClient(name string) (interface{}, error) {
-	//keys := make([]string, 0, len(p.Client))
 	client := p.Client.RangePluginClientByName(name)
 	if client == nil {
 		return nil, fmt.Errorf("plugin %s not found", name)

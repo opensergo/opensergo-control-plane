@@ -12,13 +12,6 @@ import (
 //nolint:gosimple
 func main() {
 	pluginServer := pl.NewPluginServer()
-	//defer func() {
-	//	if err := pluginServer.RunShutdownFuncs(); err != nil {
-	//		log.Fatalln("Error:", err.Error())
-	//	}
-	//	log.Println("Server shutdown")
-	//	return
-	//}()
 	err := pluginServer.InitPlugin()
 	if err != nil {
 		log.Fatalln("Error:", err.Error())

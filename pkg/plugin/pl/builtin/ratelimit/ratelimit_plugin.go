@@ -30,7 +30,7 @@ type RateLimitPlugin struct {
 
 func NewRateLimitPluginServiceServer(impl RateLimit) (*RateLimitPlugin, error) {
 	if impl == nil {
-		return nil, fmt.Errorf("empty underlying stream plugin passed in")
+		return nil, fmt.Errorf("empty underlying ratelimit plugin passed in")
 	}
 	return &RateLimitPlugin{
 		impl: impl,

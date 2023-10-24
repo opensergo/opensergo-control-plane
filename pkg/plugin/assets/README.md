@@ -1,1 +1,1 @@
-这个目录用来存放构建的插件资源
+This directory is used to store the built plug-in resources.

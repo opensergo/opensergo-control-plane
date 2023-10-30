@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package io.opensergo.plugin.proto.rate_limit;
+
+option go_package = "./";
+import "google/protobuf/any.proto";
+
+message RateLimitResponse{
+  int64 threshold = 1;
+}
+
+message RateLimitRequest {
+  int64 threshold = 1;
+}
+service RateLimitService {
+  rpc RateLimit(RateLimitRequest) returns (RateLimitResponse);
+}

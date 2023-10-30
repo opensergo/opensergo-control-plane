@@ -15,6 +15,9 @@
 package opensergo
 
 import (
+	"github.com/opensergo/opensergo-control-plane/pkg/api/v1alpha1"
+	"github.com/opensergo/opensergo-control-plane/pkg/plugin/pl/builtin"
+	ratelimit_plugin "github.com/opensergo/opensergo-control-plane/pkg/plugin/pl/builtin/ratelimit"
 	"log"
 	"os"
 	"sync"
@@ -38,7 +41,7 @@ type ControlPlane struct {
 func NewControlPlane() (*ControlPlane, error) {
 	cp := &ControlPlane{}
 
-	operator, err := controller.NewKubernetesOperator(cp.sendMessage)
+	operator, err := controller.NewKubernetesOperator(cp.sendMessage, cp.NotifyPluginHandler)
 	if err != nil {
 		return nil, err
 	}
@@ -71,6 +74,32 @@ func (c *ControlPlane) Start() error {
 	return nil
 }
 
+func (c *ControlPlane) NotifyPluginHandler(pluginName string, e any) error {
+	client, err := c.server.PluginServer.GetPluginClient(pluginName)
+	if err != nil {
+		log.Printf("Error:%s\n", err.Error())
+	}
+	switch pluginName {
+	case builtin.RateLimitServicePluginName:
+		raw, ok := client.(ratelimit_plugin.RateLimit)
+		if !ok {
+			return errors.New("can't convert ratelimit plugin to normal wrapper")
+		}
+		l, ok := e.(*v1alpha1.RateLimitStrategy)
+		if !ok {
+			log.Printf("Error: %s\n", "can't convert event to ratelimit strategy")
+		}
+		err = builtin.NotifyPluginRateLimit(raw, l)
+		if err != nil {
+			return err
+		}
+	default:
+		log.Printf("unknown plugin name: %s\n", pluginName)
+	}
+	return nil
+
+}
+
 func (c *ControlPlane) sendMessage(namespace, app, kind string, dataWithVersion *trpb.DataWithVersion, status *trpb.Status, respId string) error {
 	connections, exists := c.server.ConnectionManager().Get(namespace, app, kind)
 	if !exists || connections == nil {
@@ -94,6 +123,7 @@ func (c *ControlPlane) sendMessageToStream(stream model.OpenSergoTransportStream
 	if stream == nil {
 		return nil
 	}
+
 	return stream.SendMsg(&trpb.SubscribeResponse{
 		Status:          status,
 		Ack:             "",

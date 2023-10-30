@@ -1,0 +1,1 @@
+This directory is used to store the built plug-in resources.

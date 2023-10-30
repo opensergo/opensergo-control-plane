@@ -16,6 +16,7 @@ package controller
 
 import (
 	"context"
+	"github.com/opensergo/opensergo-control-plane/pkg/plugin/pl/builtin"
 	"log"
 	"net/http"
 	"strconv"
@@ -53,8 +54,9 @@ type CRDWatcher struct {
 	subscribedNamespaces map[string]bool
 	subscribedApps       map[model.NamespacedApp]bool
 
-	crdGenerator    func() client.Object
-	sendDataHandler model.DataEntirePushHandler
+	crdGenerator        func() client.Object
+	sendDataHandler     model.DataEntirePushHandler
+	notifyPluginHandler model.NotifyPluginHandler
 
 	updateMux sync.RWMutex
 }
@@ -247,6 +249,10 @@ func (r *CRDWatcher) translateCrdToProto(object client.Object) (*anypb.Any, erro
 
 	case RateLimitStrategyKind:
 		rls := object.(*crdv1alpha1.RateLimitStrategy)
+		err = r.notifyPluginHandler(builtin.RateLimitServicePluginName, rls)
+		if err != nil {
+			log.Println("notify plugin error", err)
+		}
 		mType, _ := strconv.ParseInt(rls.Spec.MetricType, 10, 32)
 		limitMode, _ := strconv.ParseInt(rls.Spec.LimitMode, 10, 32)
 		rule = &pb.RateLimitStrategy{
@@ -328,7 +334,7 @@ func (r *CRDWatcher) translateCrdToProto(object client.Object) (*anypb.Any, erro
 
 }
 
-func NewCRDWatcher(crdManager ctrl.Manager, kind model.SubscribeKind, crdGenerator func() client.Object, sendDataHandler model.DataEntirePushHandler) *CRDWatcher {
+func NewCRDWatcher(crdManager ctrl.Manager, kind model.SubscribeKind, crdGenerator func() client.Object, sendDataHandler model.DataEntirePushHandler, notifyPluginHandler model.NotifyPluginHandler) *CRDWatcher {
 	return &CRDWatcher{
 		kind:                 kind,
 		Client:               crdManager.GetClient(),
@@ -340,5 +346,6 @@ func NewCRDWatcher(crdManager ctrl.Manager, kind model.SubscribeKind, crdGenerat
 		crdGenerator:         crdGenerator,
 		crdCache:             NewCRDCache(kind),
 		sendDataHandler:      sendDataHandler,
+		notifyPluginHandler:  notifyPluginHandler,
 	}
 }

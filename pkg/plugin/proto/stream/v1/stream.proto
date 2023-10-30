@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package stream;
+option go_package = "./";
+
+//protoc --go_out=. --go-grpc_out=. stream.proto
+
+message StreamReq {
+  string name = 1;
+    uint32 id = 2;
+}
+
+message StreamResp {
+  string greet = 1;
+}
+message HelloReq {
+  string pre = 1;
+}
+message HelloResp {
+  string resp = 1;
+}
+
+service StreamGreeter {
+  rpc greet(StreamReq) returns (StreamResp);
+}
+
+service Hello {
+    rpc say(HelloReq) returns (HelloResp);
+}
